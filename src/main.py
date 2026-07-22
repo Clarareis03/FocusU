@@ -11,6 +11,9 @@ from system.sistema import SistemaFocusU
 
 sistema = SistemaFocusU()
 
+# Conjunto com as opções válidas do menu para validação rápida O(1)
+OPCOES_VALIDAS = {str(i) for i in range(13)}  # '0' até '12'
+
 while True:
     print("\n════════════════════════════")
     print("         FOCUS U 2.0")
@@ -29,98 +32,103 @@ while True:
     print("12 - Apagar Conta")
     print("0 - Sair")
 
-    opcao = input("\nEscolha uma opção: ")
+    opcao = input("\nEscolha uma opção: ").strip()
+
+    # BLINDAGEM 1: Trata entradas que não estão no menu (ex: "abc", "99", "")
+    if opcao not in OPCOES_VALIDAS:
+        print("\n[OPÇÃO INVÁLIDA]: Por favor, digite apenas um número de 0 a 12 de acordo com o menu.")
+        continue
 
     try:
         if opcao == "1":
-            mat = input("Matrícula: ")
-            nome = input("Nome de Usuário: ")
-            email = input("Email: ")
+            mat = input("Matrícula: ").strip()
+            nome = input("Nome de Usuário: ").strip()
+            email = input("Email: ").strip()
 
-            matricula_repetida = False
-            nome_repetido = False
-            email_repetido = False
-
-            for a in sistema.alunos:
-                if a.matricula.strip() == mat.strip():
-                    matricula_repetida = True
-                    break
-                if a.nome.strip().lower() == nome.strip().lower():
-                    nome_repetido = True
-                    break
-                if a.email.strip().lower() == email.strip().lower():
-                    email_repetido = True
-                    break
-
-            if matricula_repetida:
-                print(f"\n[AÇÃO CANCELADA]: A matrícula '{mat}' já está cadastrada!")
-                continue
-
-            if nome_repetido:
-                print(f"\n[AÇÃO CANCELADA]: O nome de usuário '{nome}' já está em uso!")
-                continue
-
-            if email_repetido:
-                print(f"\n[AÇÃO CANCELADA]: O e-mail '{email}' já está cadastrado em outra conta!")
+            if not mat or not nome or not email:
+                print("\n[AÇÃO CANCELADA]: Todos os campos devem ser preenchidos.")
                 continue
 
             sistema.adicionar_aluno(Aluno(nome, email, mat))
             print("\nAluno cadastrado com sucesso!")
 
         elif opcao == "2":
-            nome, prof = input("Disciplina: "), input("Professor: ")
+            nome = input("Disciplina: ").strip()
+            prof = input("Professor: ").strip()
+
+            if not nome or not prof:
+                print("\n[AÇÃO CANCELADA]: Todos os campos devem ser preenchidos.")
+                continue
+
             sistema.adicionar_disciplina_global(Disciplina(nome, prof))
             print("\nDisciplina criada no sistema!")
 
         elif opcao == "3":
-            if not sistema.alunos or not sistema.disciplinas_globais:
+            lista_alunos = list(sistema.alunos_por_matricula.values())
+            lista_disciplinas = list(sistema.disciplinas_por_nome.values())
+
+            if not lista_alunos or not lista_disciplinas:
                 print("Cadastre alunos e disciplinas primeiro."); continue
 
-            for i, a in enumerate(sistema.alunos): print(f"{i} - {a.nome}")
-            idx_a = int(input("Escolha o aluno: "))
-            if idx_a < 0: raise IndexError("Índices negativos não são permitidos.")
+            for i, a in enumerate(lista_alunos): print(f"{i} - {a.nome}")
+            idx_a = int(input("Escolha o aluno (número): "))
+            if idx_a < 0 or idx_a >= len(lista_alunos):
+                raise IndexError("Índice de aluno fora da lista.")
 
-            for i, d in enumerate(sistema.disciplinas_globais): print(f"{i} - {d.nome}")
-            idx_d = int(input("Escolha a disciplina: "))
-            if idx_d < 0: raise IndexError("Índices negativos não são permitidos.")
+            for i, d in enumerate(lista_disciplinas): print(f"{i} - {d.nome}")
+            idx_d = int(input("Escolha a disciplina (número): "))
+            if idx_d < 0 or idx_d >= len(lista_disciplinas):
+                raise IndexError("Índice de disciplina fora da lista.")
 
-            sistema.alunos[idx_a].adicionar_disciplina(sistema.disciplinas_globais[idx_d])
+            lista_alunos[idx_a].adicionar_disciplina(lista_disciplinas[idx_d])
             print("\nMatrícula na disciplina efetuada!")
 
         elif opcao == "4":
-            if not sistema.alunos: print("Cadastre um aluno primeiro."); continue
-            for i, a in enumerate(sistema.alunos): print(f"{i} - {a.nome}")
-            idx = int(input("Escolha o aluno dono da rotina: "))
-            if idx < 0: raise IndexError("Índices negativos não são permitidos.")
+            lista_alunos = list(sistema.alunos_por_matricula.values())
+            if not lista_alunos: print("Cadastre um aluno primeiro."); continue
 
-            atv, temp = input("Atividade: "), int(input("Tempo (min): "))
-            sistema.alunos[idx].adicionar_rotina(Rotina(atv, temp))
+            for i, a in enumerate(lista_alunos): print(f"{i} - {a.nome}")
+            idx = int(input("Escolha o aluno dono da rotina (número): "))
+            if idx < 0 or idx >= len(lista_alunos):
+                raise IndexError("Índice de aluno fora da lista.")
+
+            atv = input("Atividade: ").strip()
+            temp = int(input("Tempo em minutos: "))
+            
+            if temp <= 0:
+                print("\n[AÇÃO CANCELADA]: O tempo deve ser maior que 0.")
+                continue
+
+            lista_alunos[idx].adicionar_rotina(Rotina(atv, temp))
             print("\nRotina salva no perfil do aluno!")
 
         elif opcao == "5":
-            if not sistema.alunos: print("Cadastre um aluno primeiro."); continue
-            for i, a in enumerate(sistema.alunos): print(f"{i} - {a.nome}")
-            idx = int(input("Autor: "))
-            if idx < 0: raise IndexError("Índices negativos não são permitidos.")
+            lista_alunos = list(sistema.alunos_por_matricula.values())
+            if not lista_alunos: print("Cadastre um aluno primeiro."); continue
+
+            for i, a in enumerate(lista_alunos): print(f"{i} - {a.nome}")
+            idx = int(input("Autor (número): "))
+            if idx < 0 or idx >= len(lista_alunos):
+                raise IndexError("Índice de autor fora da lista.")
 
             print("\nTipo: 1-Geral | 2-Dúvida | 3-Material")
-            tipo = input("Escolha: ")
-            t, c = input("Título: "), input("Conteúdo: ")
+            tipo = input("Escolha: ").strip()
+            t, c = input("Título: ").strip(), input("Conteúdo: ").strip()
 
             if tipo == "2":
-                disc = input("Disciplina da dúvida: ")
-                p = PostagemDuvida(t, c, sistema.alunos[idx], disc)
+                disc = input("Disciplina da dúvida: ").strip()
+                p = PostagemDuvida(t, c, lista_alunos[idx], disc)
             elif tipo == "3":
-                link = input("Link do material: ")
-                p = PostagemMaterial(t, c, sistema.alunos[idx], link)
+                link = input("Link do material: ").strip()
+                p = PostagemMaterial(t, c, lista_alunos[idx], link)
             else:
-                p = Postagem(t, c, sistema.alunos[idx])
+                p = Postagem(t, c, lista_alunos[idx])
 
             sistema.adicionar_postagem(p)
             print("\nPostagem enviada ao feed!")
 
         elif opcao == "6":
-            t, d, h = input("Título: "), input("Data: "), input("Horário: ")
+            t, d, h = input("Título: ").strip(), input("Data: ").strip(), input("Horário: ").strip()
             sistema.adicionar_evento(Evento(t, d, h))
             print("\nEvento publicado!")
 
@@ -130,34 +138,44 @@ while True:
         elif opcao == "9":
             if not sistema.postagens: print("Nenhum post disponível."); continue
             for i, p in enumerate(sistema.postagens): print(f"{i} - {p.titulo}")
-            idx = int(input("Escolha o post: "))
-            if idx < 0: raise IndexError("Índices negativos não são permitidos.")
+            idx = int(input("Escolha o post (número): "))
+            if idx < 0 or idx >= len(sistema.postagens):
+                raise IndexError("Índice de post fora da lista.")
             sistema.postagens[idx].curtir()
             print("\nVocê curtiu essa publicação!")
 
         elif opcao == "10":
             if not sistema.postagens: print("Nenhum post disponível."); continue
             for i, p in enumerate(sistema.postagens): print(f"{i} - {p.titulo}")
-            idx = int(input("Escolha o post: "))
-            if idx < 0: raise IndexError("Índices negativos não são permitidos.")
-            coment = input("Comentário: ")
+            idx = int(input("Escolha o post (número): "))
+            if idx < 0 or idx >= len(sistema.postagens):
+                raise IndexError("Índice de post fora da lista.")
+            coment = input("Comentário: ").strip()
             sistema.postagens[idx].comentar(coment)
             print("\nComentário publicado!")
 
         elif opcao == "11": sistema.estatisticas()
 
         elif opcao == "12":
-            if not sistema.alunos: print("Nenhum aluno no sistema."); continue
-            for i, a in enumerate(sistema.alunos): print(f"{i} - {a.nome}")
-            idx = int(input("Remover ID: "))
-            if idx < 0: raise IndexError("Índices negativos não são permitidos.")
-            aluno_alvo = sistema.alunos[idx]
+            lista_alunos = list(sistema.alunos_por_matricula.values())
+            if not lista_alunos: print("Nenhum aluno no sistema."); continue
+
+            for i, a in enumerate(lista_alunos): print(f"{i} - {a.nome}")
+            idx = int(input("Remover ID (número): "))
+            if idx < 0 or idx >= len(lista_alunos):
+                raise IndexError("Índice fora da lista.")
+            aluno_alvo = lista_alunos[idx]
             sistema.remover_aluno(aluno_alvo)
             print(f"\nConta de {aluno_alvo.nome} e suas rotinas foram apagadas!")
 
-        elif opcao == "0": break
+        elif opcao == "0":
+            print("\nSaindo do Focus U... Até logo!")
+            break
 
-    except (ValueError, IndexError) as erro_especifico:
-        print(f"\n[AÇÃO INTERRUPTIDA]: Entrada inválida ou operação incorreta. ({erro_especifico})")
+    # BLINDAGEM 2: Captura qualquer erro de tipo ou índice inválido
+    except ValueError as erro_val:
+        print(f"\n[AÇÃO INTERRUPTIDA]: Digitação inválida. Esperava-se um número/valor correto. ({erro_val})")
+    except IndexError as erro_idx:
+        print(f"\n[AÇÃO INTERRUPTIDA]: O número escolhido não está na lista. ({erro_idx})")
     except Exception as erro:
-        print(f"\nErro operacional: {erro}")
+        print(f"\nErro operacional inesperado: {erro}")
