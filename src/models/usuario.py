@@ -1,3 +1,4 @@
+
 from abc import ABC, abstractmethod
 
 # Classe que serve de modelo de herança. Possui atributos
@@ -14,7 +15,6 @@ class UsuarioBase(ABC):
     def __del__(self):
         if UsuarioBase.total_usuarios > 0:
             UsuarioBase.total_usuarios -= 1
-
 
     # CONCEITO: ENCAPSULAMENTO
     @property
@@ -37,26 +37,18 @@ class UsuarioBase(ABC):
             raise ValueError("Email inválido.")
         self._email = valor
 
-
     # CONCEITO: MÉTODO ABSTRATO
-    # Força as classes filhas a implementarem sua própria versão.
-
     @abstractmethod
     def exibir_perfil(self):
         pass
 
-
-# CONCEITO: HERANÇA
-# Classe Aluno estende a classe abstrata UsuarioBase.
-
+# CONCEITO: HERANÇA E RECURSÃO
 class Aluno(UsuarioBase):
     def __init__(self, nome, email, matricula):
         super().__init__(nome, email)
         self.matricula = matricula
 
-
         # CONCEITO: ASSOCIAÇÃO
-        # Armazena internamente referências de objetos de outras classes.
         self.disciplinas = []
         self.rotinas = []
 
@@ -66,8 +58,26 @@ class Aluno(UsuarioBase):
     def adicionar_rotina(self, rotina):
         self.rotinas.append(rotina)
 
+
+
     def exibir_perfil(self):
         return f"Aluno: {self.nome} | Matrícula: {self.matricula}"
+
+    # CONCEITO: RECURSÃO DEFENSIVA
+    def calcular_tempo_estudo_recursivo(self, indice=0):
+        if indice >= len(self.rotinas):
+            return 0
+
+        rotina_atual = self.rotinas[indice]
+        tempo_valido = 0
+
+        try:
+            tempo_valido = int(rotina_atual.tempo)
+        except (ValueError, TypeError):
+            print(f" [AVISO]: A rotina '{rotina_atual.atividade}' tem um tempo inválido ('{rotina_atual.tempo}') e foi ignorada no cálculo.")
+            tempo_valido = 0
+
+        return tempo_valido + self.calcular_tempo_estudo_recursivo(indice + 1)
 
     def __str__(self):
         return self.exibir_perfil()
