@@ -1,11 +1,17 @@
 from pathlib import Path
 import sys
 
-# Ajuste de caminhos para importação
+# ==========================================================
+# AJUSTE DE CAMINHOS PARA O STREAMLIT CLOUD (RAIZ DO PROJETO)
+# ==========================================================
 WEB_DIR = Path(__file__).resolve().parent
 SRC_DIR = WEB_DIR.parent
-if str(SRC_DIR) not in sys.path:
-    sys.path.append(str(SRC_DIR))
+PROJECT_ROOT = SRC_DIR.parent
+
+# Adiciona a raiz do projeto e a pasta src ao sys.path
+for caminho in [str(PROJECT_ROOT), str(SRC_DIR), str(WEB_DIR)]:
+    if caminho not in sys.path:
+        sys.path.insert(0, caminho)
 
 import streamlit as st
 from css import carregar_css
@@ -80,7 +86,7 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
-    st.caption("Versão 1.0")
+    st.caption("Desenvolvido por Ayra, Bia e Clara")
 
 # ==========================================================
 # ROTEAMENTO DE TELAS
