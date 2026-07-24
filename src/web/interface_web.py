@@ -16,6 +16,7 @@ for caminho in [str(PROJECT_ROOT), str(SRC_DIR), str(WEB_DIR)]:
 import streamlit as st
 from css import carregar_css
 from paginas import (
+    tela_agenda,  # <-- Importação da Agenda adicionada
     tela_alunos,
     tela_disciplinas,
     tela_estatisticas,
@@ -66,6 +67,7 @@ with st.sidebar:
         ("Home", "home"),
         ("Alunos", "person"),
         ("Disciplinas", "menu_book"),
+        ("Agenda", "calendar_today"),  # <-- Item da Agenda adicionado ao menu
         ("Feed", "forum"),
         ("Estatísticas", "bar_chart"),
     ]
@@ -99,6 +101,8 @@ elif pagina_atual == "Alunos":
     tela_alunos(sistema)
 elif pagina_atual == "Disciplinas":
     tela_disciplinas(sistema)
+elif pagina_atual == "Agenda":
+    tela_agenda(sistema)  # <-- Rota da Agenda adicionada
 elif pagina_atual == "Feed":
     tela_feed(sistema)
 elif pagina_atual == "Estatísticas":
