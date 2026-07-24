@@ -1,4 +1,6 @@
 import base64
+import uuid
+from datetime import datetime, date
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +13,7 @@ from models.postagem import Postagem, PostagemDuvida, PostagemMaterial
 from models.usuario import Aluno
 from models.evento import Evento
 from utils.helpers import uploaded_file_to_base64
+from css import carregar_css  # Importa a função do arquivo css.py
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGO = BASE_DIR / "assets" / "logo_focusu.png"
@@ -33,24 +36,19 @@ ICONS_PATH = {
     "rotina": BASE_DIR / "assets" / "icons" / "rotina.png",
     "user": BASE_DIR / "assets" / "icons" / "user.png",
     "dashboard": BASE_DIR / "assets" / "icons" / "dashboard.png",
-    "home": BASE_DIR / "assets" / "icons" / "dashboard.png",  # ou use um ícone de home se tiver 
+    "home": BASE_DIR / "assets" / "icons" / "dashboard.png", 
 }
 
 ICONS = {key: get_image_as_base64(path) for key, path in ICONS_PATH.items()}
 
 
-# No topo de paginas.py, adicione esta importação:
-from css import carregar_css  # Importa a função do arquivo css.py
-
 # ==========================================================
 # 1. TELA HOME
 # ==========================================================
 def tela_home(sistema):
-    # Carrega as imagens em Base64
     logo_simbolo_base64 = get_image_as_base64(LOGO)
     logo_texto_base64 = get_image_as_base64(BASE_DIR / "assets" / "logo.png")
 
-# Banner com a última frase em destaque/legível
     st.markdown(
         f"""
     <div style="
@@ -77,11 +75,7 @@ def tela_home(sistema):
         unsafe_allow_html=True,
     )
     st.divider()
-    # ... segue o restante das métricas e cards ...
 
-    # ... restante do código mantido igual ...
-
-    # Cards Métricas Rápidas
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -188,7 +182,7 @@ def tela_home(sistema):
     """)
 
 # ==========================================================
-# 2. TELA ALUNOS (Com Upload de Foto)
+# 2. TELA ALUNOS
 # ==========================================================
 def tela_alunos(sistema):
     st.markdown("<h1>Gerenciamento de Alunos</h1>", unsafe_allow_html=True)
@@ -198,7 +192,6 @@ def tela_alunos(sistema):
 
     col_form, col_lista = st.columns([0.4, 0.6], gap="large")
 
-    # --- COLUNA 1: FORMULÁRIO DE CADASTRO ---
     with col_form:
         st.subheader("➕ Cadastrar Aluno")
 
@@ -211,7 +204,6 @@ def tela_alunos(sistema):
                 "Matrícula", placeholder="Ex: 2024100123"
             )
 
-            # Campo para Upload da Foto de Perfil
             foto_upload = st.file_uploader(
                 "Foto de Perfil (Opcional)",
                 type=["png", "jpg", "jpeg"],
@@ -227,21 +219,15 @@ def tela_alunos(sistema):
                 st.warning("⚠️ Preencha todos os campos obrigatórios.")
             else:
                 try:
-                    # Converte a foto enviada para Base64 (ou None)
                     foto_b64 = uploaded_file_to_base64(foto_upload)
-
                     aluno = Aluno(nome=nome, email=email, matricula=matricula)
-
-                    # Guarda a imagem base64 no próprio objeto do aluno
                     setattr(aluno, "foto_b64", foto_b64)
-
                     sistema.adicionar_aluno(aluno)
                     st.success(f"✅ Aluno **{nome}** cadastrado com sucesso!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ Erro ao cadastrar: {str(e)}")
 
-    # --- COLUNA 2: LISTA DE ALUNOS CADASTRADOS ---
     with col_lista:
         total_alunos = len(sistema.alunos_por_matricula)
         st.subheader(f"👥 Alunos Cadastrados ({total_alunos})")
@@ -271,12 +257,10 @@ def tela_alunos(sistema):
                     with st.container(border=True):
                         c_avatar, c_info = st.columns([0.22, 0.78])
 
-                        # Pega a foto se existir
                         foto_aluno = getattr(aluno, "foto_b64", None)
 
                         with c_avatar:
                             if foto_aluno:
-                                # Exibe a foto enviada pelo usuário
                                 st.markdown(
                                     f"""
                                     <img src="{foto_aluno}" style="
@@ -287,7 +271,6 @@ def tela_alunos(sistema):
                                     unsafe_allow_html=True,
                                 )
                             else:
-                                # Fallback: Avatar com a inicial do nome
                                 inicial = (
                                     aluno.nome[0].upper() if aluno.nome else "👤"
                                 )
@@ -316,19 +299,18 @@ def tela_alunos(sistema):
 
         else:
             st.info("Nenhum aluno cadastrado no momento.")
+
 # ==========================================================
 # 3. TELA DISCIPLINAS
 # ==========================================================
 def tela_disciplinas(sistema):
     st.markdown("<h1>Gerenciamento de Disciplinas</h1>", unsafe_allow_html=True)
     st.write(
-        "Cadastre novas disciplinas e visualize as matérias disponíveis na"
-        " instituição."
+        "Cadastre novas disciplinas e visualize as matérias disponíveis na instituição."
     )
 
     col_form, col_lista = st.columns([0.4, 0.6], gap="large")
 
-    # --- COLUNA 1: FORMULÁRIO DE CADASTRO ---
     with col_form:
         st.subheader("➕ Cadastrar Disciplina")
 
@@ -350,14 +332,10 @@ def tela_disciplinas(sistema):
                 st.warning("⚠️ Preencha o nome da disciplina e o professor.")
             else:
                 try:
-                    # Instancia a disciplina com nome e professor
                     disciplina = Disciplina(
                         nome=nome.strip(), professor=professor.strip()
                     )
-
-                    # Chama o método exato do seu backend
                     sistema.adicionar_disciplina_global(disciplina)
-
                     st.success(
                         f"✅ Disciplina **{nome}** cadastrada com sucesso!"
                     )
@@ -365,9 +343,7 @@ def tela_disciplinas(sistema):
                 except Exception as e:
                     st.error(f"❌ {str(e)}")
 
-    # --- COLUNA 2: LISTA DE DISCIPLINAS ---
     with col_lista:
-        # Pega as disciplinas do dicionário disciplinas_por_nome
         lista_disc = list(sistema.disciplinas_por_nome.values())
         total_disciplinas = len(lista_disc)
 
@@ -406,8 +382,136 @@ def tela_disciplinas(sistema):
 
         else:
             st.info("Nenhuma disciplina cadastrada no momento.")
+
 # ==========================================================
-# 4. TELA FEED (ESTILO INSTAGRAM FIEL Á IMAGEM)
+# 4. TELA AGENDA (Atualizada com OO)
+# ==========================================================
+def tela_agenda(sistema):
+    st.markdown("<h1>📅 Agenda de Tarefas</h1>", unsafe_allow_html=True)
+    st.write("Acompanhe suas provas, entregas e trabalhos organizados por disciplina.")
+
+    dict_disciplinas = sistema.disciplinas_por_nome
+
+    if not dict_disciplinas:
+        st.warning("⚠️ Cadastre pelo menos uma disciplina na aba 'Disciplinas' para utilizar a agenda.")
+        return
+
+    col_filtro, _ = st.columns([0.4, 0.6])
+    with col_filtro:
+        filtro_status = st.radio(
+            "Filtrar por status:",
+            options=["Todas", "Pendentes", "Concluídas"],
+            horizontal=True
+        )
+
+    st.divider()
+
+    with st.expander("➕ Cadastrar Nova Tarefa"):
+        with st.form("form_nova_tarefa", clear_on_submit=True):
+            col_disc, col_tipo = st.columns(2)
+            
+            with col_disc:
+                nome_disc_selecionada = st.selectbox("Disciplina", list(dict_disciplinas.keys()))
+            with col_tipo:
+                tipo = st.selectbox("Tipo", ["Prova", "Entrega", "Trabalho", "Lista"])
+
+            col_titulo, col_data = st.columns([0.6, 0.4])
+            with col_titulo:
+                titulo = st.text_input("Título da Tarefa", placeholder="Ex: P1 de Cálculo, Trabalho em Grupo...")
+            with col_data:
+                data_entrega = st.date_input("Data de Entrega", min_value=date.today())
+
+            descricao = st.text_area("Descrição (opcional)", placeholder="Detalhes adicionais ou links úteis...")
+
+            cadastrar = st.form_submit_button("Salvar Tarefa", type="primary", use_container_width=True)
+
+            if cadastrar:
+                if not titulo.strip():
+                    st.error("⚠️ O título da tarefa é obrigatório!")
+                else:
+                    disciplina_obj = dict_disciplinas[nome_disc_selecionada]
+                    tarefa_criada = disciplina_obj.adicionar_tarefa(
+                        titulo=titulo.strip(),
+                        data_entrega=data_entrega,
+                        tipo=tipo,
+                        descricao=descricao.strip()
+                    )
+                    st.success(f"✅ Tarefa **'{tarefa_criada.titulo}'** adicionada à disciplina **{nome_disc_selecionada}**!")
+                    st.rerun()
+
+    st.markdown("### 📚 Tarefas por Disciplina")
+
+    icones_tipo = {
+        "Prova": "📝",
+        "Entrega": "📦",
+        "Trabalho": "👥",
+        "Lista": "📄"
+    }
+
+    status_param = None
+    if filtro_status == "Pendentes":
+        status_param = "pendente"
+    elif filtro_status == "Concluídas":
+        status_param = "concluida"
+
+    for nome_disc, disciplina_obj in dict_disciplinas.items():
+        tarefas_brutas = disciplina_obj.listar_tarefas(status=status_param)
+
+        # FILTRAGEM DE SEGURANÇA NA INTERFACE:
+        # Garante que apenas tarefas do status selecionado serão exibidas
+        if filtro_status == "Pendentes":
+            tarefas = [t for t in tarefas_brutas if not getattr(t, "concluida", False)]
+        elif filtro_status == "Concluídas":
+            tarefas = [t for t in tarefas_brutas if getattr(t, "concluida", False)]
+        else:
+            tarefas = tarefas_brutas
+
+        with st.expander(f"📖 **{nome_disc}** ({len(tarefas)} tarefas)", expanded=True):
+            if not tarefas:
+                st.caption("Nenhuma tarefa encontrada para os filtros selecionados.")
+                continue
+
+            for tarefa in tarefas:
+                col_check, col_info = st.columns([0.08, 0.92])
+
+                with col_check:
+                    ja_concluida = getattr(tarefa, "concluida", False)
+                    marcado = st.checkbox(
+                        label="Concluir",
+                        value=ja_concluida,
+                        key=f"chk_{tarefa.id}",
+                        label_visibility="collapsed"
+                    )
+
+                    if marcado != ja_concluida:
+                        if marcado:
+                            if hasattr(disciplina_obj, "concluir_tarefa"):
+                                disciplina_obj.concluir_tarefa(tarefa.id)
+                            else:
+                                tarefa.concluida = True
+                        else:
+                            tarefa.concluida = False
+                        st.rerun()
+
+                with col_info:
+                    icone = icones_tipo.get(tarefa.tipo, "📌")
+                    data_str = tarefa.data_entrega.strftime("%d/%m/%Y") if hasattr(tarefa.data_entrega, "strftime") else str(tarefa.data_entrega)
+
+                    if tarefa.concluida:
+                        st.markdown(f"~~{icone} **[{tarefa.tipo}]** {tarefa.titulo} — *Vencimento: {data_str}*~~")
+                    else:
+                        st.markdown(f"{icone} **[{tarefa.tipo}]** **{tarefa.titulo}** — 🗓️ *Vencimento: {data_str}*")
+
+                    if tarefa.descricao:
+                        st.caption(f"💬 {tarefa.descricao}")
+
+                    if not tarefa.concluida and isinstance(tarefa.data_entrega, date) and tarefa.data_entrega < date.today():
+                        st.warning("⚠️ Esta tarefa está em atraso!")
+
+                st.divider()
+
+# ==========================================================
+# 5. TELA FEED 
 # ==========================================================
 def tela_feed(sistema):
     st.markdown("<h1>Feed da Comunidade</h1>", unsafe_allow_html=True)
@@ -416,9 +520,6 @@ def tela_feed(sistema):
 
     alunos_disponiveis = list(sistema.alunos_por_matricula.values())
 
-    # ------------------------------------------------------
-    # ABA 1: FEED IGUAL AO INSTAGRAM
-    # ------------------------------------------------------
     with tab_feed:
         feed_items = sistema.postagens + sistema.eventos
 
@@ -442,7 +543,6 @@ def tela_feed(sistema):
                     foto_autor = getattr(autor_obj, "foto_b64", None)
                     foto_post = getattr(item, "foto_post_b64", None)
 
-                    # Avatar do Autor
                     if foto_autor:
                         avatar_html = f'<img src="{foto_autor}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">'
                     else:
@@ -456,7 +556,6 @@ def tela_feed(sistema):
                         ">{letra}</div>
                         """
 
-                    # CARD DO POST
                     st.markdown(
                         f"""
                         <div style="
@@ -466,7 +565,6 @@ def tela_feed(sistema):
                             margin-bottom: 28px;
                             padding-bottom: 12px;
                         ">
-                            <!-- HEADER DO POST -->
                             <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px;">
                                 {avatar_html}
                                 <span style="color: white; font-weight: 600; font-size: 14px;">{nome_autor.lower()}</span>
@@ -475,7 +573,6 @@ def tela_feed(sistema):
                         unsafe_allow_html=True,
                     )
 
-                    # FOTO DO POST (Sem cortar)
                     if foto_post:
                         st.markdown(
                             f"""
@@ -486,7 +583,6 @@ def tela_feed(sistema):
                             unsafe_allow_html=True,
                         )
 
-                    # ÁREA DE CONTEÚDO E LEGENDA (Estilo Instagram)
                     st.markdown(
                         '<div style="padding: 10px 14px 0px 14px;">',
                         unsafe_allow_html=True,
@@ -494,24 +590,19 @@ def tela_feed(sistema):
 
                     if hasattr(item, "titulo") and item.titulo:
                         st.markdown(
-                            f"<h4 style='color: white; margin: 0 0 4px"
-                            f" 0;'>{item.titulo}</h4>",
+                            f"<h4 style='color: white; margin: 0 0 4px 0;'>{item.titulo}</h4>",
                             unsafe_allow_html=True,
                         )
 
                     conteudo_texto = getattr(item, "conteudo", "")
                     if conteudo_texto:
                         st.markdown(
-                            f"<p style='color: #E4E4E7; font-size: 14px;"
-                            f" margin: 0;'><strong"
-                            f" style='color:white;'>{nome_autor.lower()}</strong>"
-                            f" {conteudo_texto}</p>",
+                            f"<p style='color: #E4E4E7; font-size: 14px; margin: 0;'><strong style='color:white;'>{nome_autor.lower()}</strong> {conteudo_texto}</p>",
                             unsafe_allow_html=True,
                         )
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
-                    # BOTÃO CURTIR
                     if not is_evento and hasattr(item, "curtir"):
                         st.markdown(
                             '<div style="padding: 6px 14px;">',
@@ -524,7 +615,6 @@ def tela_feed(sistema):
                             st.rerun()
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                    # LISTA DE COMENTÁRIOS (Igual à imagem que você mandou)
                     if not is_evento and hasattr(item, "comentarios"):
                         st.markdown(
                             '<div style="padding: 0px 14px;">',
@@ -533,7 +623,6 @@ def tela_feed(sistema):
 
                         if item.comentarios:
                             for c in item.comentarios:
-                                # Trata se o comentário tiver autor ou for texto puro
                                 if "::" in str(c):
                                     c_autor, c_texto = str(c).split("::", 1)
                                 else:
@@ -559,7 +648,6 @@ def tela_feed(sistema):
 
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                        # FORMULÁRIO DE COMENTAR
                         st.markdown("<br>", unsafe_allow_html=True)
                         with st.form(
                             key=f"form_coment_{idx}", clear_on_submit=True
@@ -595,18 +683,13 @@ def tela_feed(sistema):
                                             if hasattr(comentador, "nome")
                                             else "Usuário"
                                         )
-                                        # Salva no formato Autor::Texto
                                         item.comentar(
                                             f"{autor_nome_c}::{txt_coment.strip()}"
                                         )
                                         st.rerun()
 
-                    # Fecha a div do Card
                     st.markdown("</div>", unsafe_allow_html=True)
 
-    # ------------------------------------------------------
-    # ABA 2: CRIAR PUBLICAÇÃO
-    # ------------------------------------------------------
     with tab_novo:
         st.subheader("O que você deseja compartilhar?")
 
@@ -692,7 +775,7 @@ def tela_feed(sistema):
                             except Exception as e:
                                 st.error(f"❌ Erro ao publicar: {str(e)}")
 
-                else:  # Criar Evento
+                else: 
                     titulo_ev = st.text_input(
                         "Título do Evento", placeholder="Ex: Hackathon FocusU"
                     )
@@ -721,25 +804,18 @@ def tela_feed(sistema):
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Erro ao criar evento: {str(e)}")
-# ==========================================================
-# 5. TELA ESTATÍSTICAS
-# ==========================================================
-import pandas as pd
-
 
 # ==========================================================
-# 5. TELA DE ESTATÍSTICAS E DASHBOARD
+# 6. TELA DE ESTATÍSTICAS E DASHBOARD
 # ==========================================================
 def tela_estatisticas(sistema):
     st.markdown(
         "<h1>📊 Dashboard de Estatísticas</h1>", unsafe_allow_html=True
     )
     st.write(
-        "Acompanhe o engajamento da comunidade e as métricas do FocusU em tempo"
-        " real."
+        "Acompanhe o engajamento da comunidade e as métricas do FocusU em tempo real."
     )
 
-    # Coleta de Dados do Sistema
     alunos = list(sistema.alunos_por_matricula.values())
     postagens = sistema.postagens
     eventos = sistema.eventos
@@ -748,15 +824,11 @@ def tela_estatisticas(sistema):
     total_posts = len(postagens)
     total_eventos = len(eventos)
 
-    # Cálculo de métricas
     total_curtidas = sum(getattr(p, "curtidas", 0) for p in postagens)
     total_comentarios = sum(
         len(getattr(p, "comentarios", [])) for p in postagens
     )
 
-    # ------------------------------------------------------
-    # 1. CARDS DE MÉTRICAS (KPIs)
-    # ------------------------------------------------------
     c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         st.metric("👥 Alunos", total_alunos)
@@ -778,12 +850,8 @@ def tela_estatisticas(sistema):
         )
         return
 
-    # ------------------------------------------------------
-    # 2. GRÁFICOS E RANKINGS
-    # ------------------------------------------------------
     col_left, col_right = st.columns(2)
 
-    # --- Gráfico de Tipos de Postagem ---
     with col_left:
         st.subheader("📌 Distribuição de Conteúdo")
 
@@ -803,7 +871,6 @@ def tela_estatisticas(sistema):
         df_tipos = pd.DataFrame(dados_tipos)
         st.bar_chart(df_tipos.set_index("Tipo"))
 
-    # --- Ranking de Alunos Mais Ativos ---
     with col_right:
         st.subheader("🏆 Ranking de Autores (Posts)")
 
@@ -830,9 +897,6 @@ def tela_estatisticas(sistema):
         else:
             st.caption("Sem dados de autores suficientes.")
 
-    # ------------------------------------------------------
-    # 3. DESTAQUES DA COMUNIDADE
-    # ------------------------------------------------------
     st.markdown("---")
     st.subheader("⭐ Publicação em Destaque")
 
@@ -865,12 +929,10 @@ def tela_estatisticas(sistema):
 def main(sistema):
     carregar_css()
 
-    # Guarda a página atual no session_state
     if "pagina" not in st.session_state:
         st.session_state.pagina = "Home"
 
     with st.sidebar:
-        # Cabeçalho da Sidebar
         if LOGO.exists():
             st.image(str(LOGO), width=110)
 
@@ -884,24 +946,21 @@ def main(sistema):
             unsafe_allow_html=True,
         )
 
-        # Mapeamento dos botões da sidebar
         botoes = [
             ("Home", "home"),
             ("Alunos", "user"),
             ("Disciplinas", "livro"),
+            ("Agenda", "rotina"),
             ("Feed", "chat"),
             ("Estatísticas", "dashboard"),
         ]
 
-        # Criar os botões verticais na Sidebar
         for nome, chave_icone in botoes:
             eh_ativa = st.session_state.pagina == nome
             tipo_botao = "primary" if eh_ativa else "secondary"
             
-            # Pega o ícone base64 correspondente
             img_icon = ICONS.get(chave_icone, "")
 
-            # Exibe o ícone e o botão em colunas para ficarem lado a lado
             col_icon, col_btn = st.columns([0.2, 0.8])
             
             with col_icon:
@@ -924,7 +983,6 @@ def main(sistema):
         st.markdown("<br><br>", unsafe_allow_html=True)
         st.caption("Versão 1.0")
 
-    # Direcionamento das telas
     opcao = st.session_state.pagina
 
     if opcao == "Home":
@@ -933,6 +991,8 @@ def main(sistema):
         tela_alunos(sistema)
     elif opcao == "Disciplinas":
         tela_disciplinas(sistema)
+    elif opcao == "Agenda":
+        tela_agenda(sistema)
     elif opcao == "Feed":
         tela_feed(sistema)
     elif opcao == "Estatísticas":
