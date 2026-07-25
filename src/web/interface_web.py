@@ -26,14 +26,14 @@ from src.web.paginas import (
 )
 from src.system.sistema import SistemaFocusU
 
-# Tenta os caminhos possíveis do módulo de banco sem quebrar a aplicação
+# Importa as funções do arquivo persistencia.py localizado na pasta utils
 try:
-    from banco import carregar_sistema_json, salvar_sistema_json
+    from src.utils.persistencia import carregar_sistema_json, salvar_sistema_json
 except ModuleNotFoundError:
     try:
-        from src.banco import carregar_sistema_json, salvar_sistema_json
+        from utils.persistencia import carregar_sistema_json, salvar_sistema_json
     except ModuleNotFoundError:
-        from src.system.banco import carregar_sistema_json, salvar_sistema_json
+        from persistencia import carregar_sistema_json, salvar_sistema_json
 
 # Configuração da página
 st.set_page_config(page_title="FocusU", page_icon="🎓", layout="wide")
@@ -46,7 +46,13 @@ if "sistema" not in st.session_state:
     instancia_sistema = SistemaFocusU()
     st.session_state.sistema = carregar_sistema_json(instancia_sistema)
 
-# ... restante do seu código permanece igual ...
+# Inicializa a página padrão no session state
+if "pagina" not in st.session_state:
+    st.session_state.pagina = "Home"
+
+# Define as variáveis utilizadas pelo restante da interface
+sistema = st.session_state.sistema
+ASSETS_DIR = WEB_DIR / "assets"
 
 # ==========================================================
 # SIDEBAR / MENU LATERAL
