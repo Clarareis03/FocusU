@@ -255,7 +255,6 @@ def tela_alunos(sistema):
                 st.markdown(f"<h3 style='margin:0; color:white;'>{nome_aluno}</h3>", unsafe_allow_html=True)
                 st.caption(f"📧 {email_aluno}  |  🆔 Matrícula: **{matricula_aluno}**")
 
-                # Chamada segura do cálculo do tempo com try/except
                 minutos_estudo = 0
                 try:
                     if hasattr(aluno_logado, "calcular_tempo_estudo_recursivo"):
@@ -272,8 +271,6 @@ def tela_alunos(sistema):
 
         with col_prog:
             st.markdown("##### 📊 Progresso Acadêmico")
-            
-            # Chamada isolada por try/except para impedir qualquer queda da aplicação
             progresso = 0.0
             try:
                 if hasattr(aluno_logado, "calcular_progresso_estudos"):
@@ -281,7 +278,6 @@ def tela_alunos(sistema):
             except Exception:
                 progresso = 0.0
 
-            # Garantia de valor float limpo
             try:
                 val_progresso = float(progresso)
             except (ValueError, TypeError):
@@ -292,8 +288,6 @@ def tela_alunos(sistema):
 
         with col_pend:
             st.markdown("##### 📌 Tarefas Pendentes")
-            
-            # Chamada segura com bloco try/except
             tarefas_pendentes = []
             try:
                 if hasattr(aluno_logado, "obter_tarefas_pendentes"):
@@ -359,13 +353,16 @@ def tela_alunos(sistema):
                 entrar = st.form_submit_button("Entrar", type="primary", use_container_width=True)
 
             if entrar:
-                if not matricula_login or not senha_login:
+                mat_limpa = str(matricula_login).strip()
+                senha_limpa = str(senha_login).strip()
+
+                if not mat_limpa or not senha_limpa:
                     st.warning("⚠️ Preencha a matrícula e a senha.")
                 else:
-                    aluno_encontrado = sistema.alunos_por_matricula.get(matricula_login.strip())
-                    senha_salva = getattr(aluno_encontrado, "senha", None) if aluno_encontrado else None
+                    aluno_encontrado = sistema.alunos_por_matricula.get(mat_limpa)
+                    senha_salva = str(getattr(aluno_encontrado, "senha", "")).strip() if aluno_encontrado else ""
 
-                    if aluno_encontrado and senha_salva == senha_login:
+                    if aluno_encontrado and senha_salva == senha_limpa and senha_salva != "":
                         st.session_state["aluno_logado"] = aluno_encontrado
                         st.success(f"✅ Bem-vindo(a) de volta, {aluno_encontrado.nome}!")
                         st.rerun()
@@ -386,17 +383,23 @@ def tela_alunos(sistema):
                 cadastrar = st.form_submit_button("Cadastrar e Entrar", use_container_width=True, type="primary")
 
             if cadastrar:
-                if not nome or not email or not matricula or not senha:
+                mat_cad = str(matricula).strip()
+                senha_cad = str(senha).strip()
+                nome_cad = str(nome).strip()
+                email_cad = str(email).strip()
+
+                if not nome_cad or not email_cad or not mat_cad or not senha_cad:
                     st.warning("⚠️ Preencha todos os campos obrigatórios (incluindo a senha).")
-                elif matricula.strip() in sistema.alunos_por_matricula:
+                elif mat_cad in sistema.alunos_por_matricula:
                     st.error("❌ Esta matrícula já está cadastrada no sistema.")
                 else:
                     try:
                         foto_b64 = uploaded_file_to_base64(foto_upload) if foto_upload else None
 
-                        aluno = Aluno(nome=nome.strip(), email=email.strip(), matricula=matricula.strip())
+                        aluno = Aluno(nome=nome_cad, email=email_cad, matricula=mat_cad)
 
-                        setattr(aluno, "senha", senha)
+                        # Guarda a senha limpa no objeto
+                        setattr(aluno, "senha", senha_cad)
                         if foto_b64:
                             setattr(aluno, "foto_b64", foto_b64)
 
@@ -405,7 +408,7 @@ def tela_alunos(sistema):
 
                         st.session_state["aluno_logado"] = aluno
 
-                        st.success(f"✅ Conta criada com sucesso! Bem-vindo(a), {nome}!")
+                        st.success(f"✅ Conta criada com sucesso! Bem-vindo(a), {nome_cad}!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Erro ao cadastrar: {str(e)}")
