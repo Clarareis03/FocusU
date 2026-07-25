@@ -82,7 +82,7 @@ class Aluno(UsuarioBase):
         tempo_valido = 0
 
         try:
-            tempo_valido = int(rotina_atual.tempo)
+            tempo_valido = int(getattr(rotina_atual, "tempo", 0))
         except (ValueError, TypeError, AttributeError):
             print(f" [AVISO]: A rotina '{getattr(rotina_atual, 'atividade', 'desconhecida')}' tem um tempo inválido e foi ignorada.")
             tempo_valido = 0
@@ -110,7 +110,7 @@ class Aluno(UsuarioBase):
                     tarefas = list(tarefas.values())
 
             for tarefa in tarefas:
-                if tarefa is None:
+                if not tarefa:
                     continue
 
                 concluida = False
@@ -119,17 +119,17 @@ class Aluno(UsuarioBase):
 
                 if isinstance(tarefa, dict):
                     concluida = bool(tarefa.get("concluida", False))
-                    titulo = tarefa.get("titulo", "Sem título")
-                    data = tarefa.get("data_entrega", "Sem data")
+                    titulo = str(tarefa.get("titulo", "Sem título"))
+                    data = str(tarefa.get("data_entrega", "Sem data"))
                 elif isinstance(tarefa, str):
                     titulo = tarefa
                 else:
                     concluida = bool(getattr(tarefa, "concluida", False))
-                    titulo = getattr(tarefa, "titulo", "Sem título")
-                    data = getattr(tarefa, "data_entrega", "Sem data")
+                    titulo = str(getattr(tarefa, "titulo", "Sem título"))
+                    data = str(getattr(tarefa, "data_entrega", "Sem data"))
 
                 if not concluida:
-                    nome_disciplina = getattr(disciplina, "nome", "Disciplina")
+                    nome_disciplina = getattr(disciplina, "nome", "Disciplina") if not isinstance(disciplina, dict) else disciplina.get("nome", "Disciplina")
                     
                     tarefas_pendentes.append({
                         "disciplina": nome_disciplina,
@@ -169,23 +169,25 @@ class Aluno(UsuarioBase):
                 t_attr = getattr(d, "_tarefas")
                 tarefas = list(t_attr.values()) if isinstance(t_attr, dict) else t_attr
             elif isinstance(d, dict):
-                t_attr = d.get("_tarefas", {})
+                t_attr = d.get("_tarefas", d.get("tarefas", []))
                 tarefas = list(t_attr.values()) if isinstance(t_attr, dict) else t_attr
             else:
                 tarefas = []
 
             for t in tarefas:
-                if t is None:
+                if not t:
                     continue
                 
                 total_tarefas += 1
                 
-                # Validação ultra-segura para saber se a tarefa está concluída
                 is_concluida = False
-                if isinstance(t, dict):
-                    is_concluida = bool(t.get("concluida", False))
-                elif not isinstance(t, str):  # Se for um objeto Tarefa
-                    is_concluida = bool(getattr(t, "concluida", False))
+                try:
+                    if isinstance(t, dict):
+                        is_concluida = bool(t.get("concluida", False))
+                    elif not isinstance(t, str):
+                        is_concluida = bool(getattr(t, "concluida", False))
+                except Exception:
+                    is_concluida = False
 
                 if is_concluida:
                     tarefas_concluidas += 1
