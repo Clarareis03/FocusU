@@ -1,4 +1,3 @@
-
 import json
 import os
 from datetime import datetime, date
@@ -59,14 +58,20 @@ def sistema_para_dict(sistema):
         }
         dados["disciplinas"].append(disc_data)
 
-    # C) Converte Postagens (Geral, Dúvida, Material + Foto do Post)
+    # C) Converte Postagens (Geral, Dúvida, Material + Foto + Curtidores)
     for post in sistema.postagens:
+        # Garante a extração segura do atributo 'curtidores'
+        curtidores_list = getattr(post, "curtidores", [])
+        if isinstance(curtidores_list, set):
+            curtidores_list = list(curtidores_list)
+
         post_data = {
             "tipo": post.__class__.__name__,
             "titulo": post.titulo,
             "conteudo": post.conteudo,
-            "autor_matricula": post.autor.matricula.strip() if post.autor else None,
-            "curtidas": getattr(post, "curtidas", 0),
+            "autor_matricula": post.autor.matricula.strip() if getattr(post, "autor", None) else None,
+            "curtidas": getattr(post, "curtidas", len(curtidores_list)),
+            "curtidores": curtidores_list,  # CRUCIAL: Salva as matrículas de quem curtiu
             "comentarios": getattr(post, "comentarios", []),
             "foto_post_b64": getattr(post, "foto_post_b64", "")
         }
@@ -99,6 +104,10 @@ def dict_para_sistema(dados_dict, sistema):
     """
     if not dados_dict:
         return sistema
+
+    # Limpa listas anteriores para evitar duplicações de registros na memória
+    sistema.postagens = []
+    sistema.eventos = []
 
     # A) Recria Disciplinas e Tarefas
     for d in dados_dict.get("disciplinas", []):
@@ -138,7 +147,7 @@ def dict_para_sistema(dados_dict, sistema):
         except Exception as e:
             print(f"Erro ao carregar aluno '{a.get('nome')}': {e}")
 
-    # C) Recria Postagens (com Foto do Post, Curtidas e Comentários)
+    # C) Recria Postagens (com Curtidores e Comentários)
     for p in dados_dict.get("postagens", []):
         try:
             autor_obj = sistema.alunos_por_matricula.get(p.get("autor_matricula"))
@@ -152,7 +161,9 @@ def dict_para_sistema(dados_dict, sistema):
             else:
                 nova_post = Postagem(p["titulo"], p["conteudo"], autor_obj)
 
-            nova_post.curtidas = p.get("curtidas", 0)
+            # Restaura curtidas e a lista dos alunos que curtiram
+            nova_post.curtidores = p.get("curtidores", [])
+            nova_post.curtidas = len(nova_post.curtidores) if nova_post.curtidores else p.get("curtidas", 0)
             nova_post.comentarios = p.get("comentarios", [])
 
             if p.get("foto_post_b64"):
