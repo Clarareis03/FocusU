@@ -127,3 +127,6 @@ elif pagina_atual == "Feed":
     tela_feed(sistema)
 elif pagina_atual == "Estatísticas":
     tela_estatisticas(sistema)
+
+
+
