@@ -198,6 +198,35 @@ def tela_home(sistema):
 # 2. TELA ALUNOS (LOGIN & SESSÃO ÚNICA)
 # ==========================================================
 def tela_alunos(sistema):
+    # CSS Customizado para forçar os campos do formulário em tons Roxos (remove borda vermelha/coral)
+    st.markdown(
+        """
+        <style>
+        /* Estilização dos inputs ao focar e pairar */
+        div[data-baseweb="input"] > div {
+            border-color: #6C5CE7 !important;
+        }
+        div[data-baseweb="input"] > div:focus-within {
+            border-color: #A29BFE !important;
+            box-shadow: 0 0 0 1px #A29BFE !important;
+        }
+        input:focus {
+            border-color: #A29BFE !important;
+            box-shadow: none !important;
+        }
+        /* Estilização da área de upload de arquivos */
+        div[data-testid="stFileUploader"] section {
+            border-color: #6C5CE7 !important;
+            background-color: rgba(108, 92, 231, 0.05) !important;
+        }
+        div[data-testid="stFileUploader"] section:hover {
+            border-color: #A29BFE !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown("<h1>Meu Perfil & Sessão</h1>", unsafe_allow_html=True)
 
     # Recupera o aluno logado na sessão ativa
@@ -220,6 +249,9 @@ def tela_alunos(sistema):
             col_avatar_p, col_info_p = st.columns([0.25, 0.75])
 
             foto_aluno_p = getattr(aluno_logado, "foto_b64", None)
+            nome_aluno = getattr(aluno_logado, "nome", "Aluno")
+            email_aluno = getattr(aluno_logado, "email", "Sem e-mail")
+            matricula_aluno = getattr(aluno_logado, "matricula", "N/A")
 
             with col_avatar_p:
                 if foto_aluno_p:
@@ -233,9 +265,7 @@ def tela_alunos(sistema):
                         unsafe_allow_html=True,
                     )
                 else:
-                    inicial_p = (
-                        aluno_logado.nome[0].upper() if aluno_logado.nome else "👤"
-                    )
+                    inicial_p = nome_aluno[0].upper() if nome_aluno else "👤"
                     st.markdown(
                         f"""
                         <div style="
@@ -251,10 +281,15 @@ def tela_alunos(sistema):
                     )
 
             with col_info_p:
-                st.markdown(f"<h3 style='margin:0; color:white;'>{aluno_logado.nome}</h3>", unsafe_allow_html=True)
-                st.caption(f"📧 {aluno_logado.email}  |  🆔 Matrícula: **{aluno_logado.matricula}**")
+                st.markdown(f"<h3 style='margin:0; color:white;'>{nome_aluno}</h3>", unsafe_allow_html=True)
+                st.caption(f"📧 {email_aluno}  |  🆔 Matrícula: **{matricula_aluno}**")
 
-                minutos_estudo = aluno_logado.calcular_tempo_estudo_recursivo()
+                # Chamada segura do cálculo do tempo
+                if hasattr(aluno_logado, "calcular_tempo_estudo_recursivo"):
+                    minutos_estudo = aluno_logado.calcular_tempo_estudo_recursivo()
+                else:
+                    minutos_estudo = 0
+
                 horas = minutos_estudo // 60
                 mins = minutos_estudo % 60
                 st.markdown(f"⏱️ **Tempo Total Dedicado:** `{horas}h {mins}min`")
@@ -264,13 +299,25 @@ def tela_alunos(sistema):
 
         with col_prog:
             st.markdown("##### 📊 Progresso Acadêmico")
-            progresso = aluno_logado.calcular_progresso_estudos(sistema)
-            st.progress(progresso / 100.0)
+            
+            # Chamada segura com fallback para evitar o AttributeError
+            if hasattr(aluno_logado, "calcular_progresso_estudos"):
+                progresso = aluno_logado.calcular_progresso_estudos(sistema)
+            else:
+                progresso = 0.0
+
+            st.progress(min(max(float(progresso) / 100.0, 0.0), 1.0))
             st.caption(f"**{progresso}%** das atividades do sistema foram concluídas!")
 
         with col_pend:
             st.markdown("##### 📌 Tarefas Pendentes")
-            tarefas_pendentes = aluno_logado.obter_tarefas_pendentes(sistema)
+            
+            # Chamada segura das tarefas pendentes
+            if hasattr(aluno_logado, "obter_tarefas_pendentes"):
+                tarefas_pendentes = aluno_logado.obter_tarefas_pendentes(sistema)
+            else:
+                tarefas_pendentes = []
+
             if tarefas_pendentes:
                 for t in tarefas_pendentes[:2]:
                     st.warning(f"**{t['titulo']}** ({t['disciplina']}) — Entrega: `{t['data_entrega']}`")
@@ -282,8 +329,8 @@ def tela_alunos(sistema):
         # Editar Perfil
         with st.expander("✏️ Editar Meu Perfil"):
             with st.form("form_editar_perfil"):
-                novo_nome = st.text_input("Novo Nome", value=aluno_logado.nome)
-                novo_email = st.text_input("Novo E-mail", value=aluno_logado.email)
+                novo_nome = st.text_input("Novo Nome", value=nome_aluno)
+                novo_email = st.text_input("Novo E-mail", value=email_aluno)
                 nova_foto = st.file_uploader("Trocar Foto", type=["png", "jpg", "jpeg"])
 
                 if st.form_submit_button("Salvar Alterações", type="primary"):
@@ -292,7 +339,14 @@ def tela_alunos(sistema):
                         if nova_foto:
                             b64_foto = uploaded_file_to_base64(nova_foto)
 
-                        aluno_logado.atualizar_perfil(novo_nome, novo_email, b64_foto)
+                        if hasattr(aluno_logado, "atualizar_perfil"):
+                            aluno_logado.atualizar_perfil(novo_nome, novo_email, b64_foto)
+                        else:
+                            aluno_logado.nome = novo_nome
+                            aluno_logado.email = novo_email
+                            if b64_foto:
+                                aluno_logado.foto_b64 = b64_foto
+
                         salvar_sistema_json(sistema)
 
                         st.success("✅ Perfil atualizado com sucesso!")
@@ -321,10 +375,7 @@ def tela_alunos(sistema):
                 if not matricula_login or not senha_login:
                     st.warning("⚠️ Preencha a matrícula e a senha.")
                 else:
-                    # Busca o aluno no dicionário de matrículas
                     aluno_encontrado = sistema.alunos_por_matricula.get(matricula_login.strip())
-                    
-                    # Verifica a senha (usando atributo `senha` do objeto Aluno)
                     senha_salva = getattr(aluno_encontrado, "senha", None) if aluno_encontrado else None
 
                     if aluno_encontrado and senha_salva == senha_login:
@@ -355,26 +406,22 @@ def tela_alunos(sistema):
                 else:
                     try:
                         foto_b64 = uploaded_file_to_base64(foto_upload) if foto_upload else None
-                        
+
                         aluno = Aluno(nome=nome.strip(), email=email.strip(), matricula=matricula.strip())
-                        
-                        # Atribui a senha e a foto ao objeto
+
                         setattr(aluno, "senha", senha)
                         if foto_b64:
                             setattr(aluno, "foto_b64", foto_b64)
 
-                        # Salva no sistema e no JSON
                         sistema.adicionar_aluno(aluno)
                         salvar_sistema_json(sistema)
 
-                        # Inicia sessão diretamente
                         st.session_state["aluno_logado"] = aluno
 
                         st.success(f"✅ Conta criada com sucesso! Bem-vindo(a), {nome}!")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Erro ao cadastrar: {str(e)}")
-
 # ==========================================================
 # 3. TELA DISCIPLINAS
 # ==========================================================
