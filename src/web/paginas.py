@@ -120,6 +120,8 @@ def tela_home(sistema):
     st.divider()
 
     st.markdown("## Funcionalidades")
+    
+    # ------------------ LINHA 1 ------------------
     col1, col2 = st.columns(2)
 
     with col1:
@@ -129,11 +131,13 @@ def tela_home(sistema):
             <div class="feature-icon"><img src="{ICONS['user']}" width="50" height="50" alt="Alunos"></div>
             <div class="feature-title">Cadastro de Alunos</div>
             <div class="feature-text">Cadastre estudantes e gerencie seus dados acadêmicos.</div>
-            <div class="feature-link">➜ Gerenciamento de usuários</div>
         </div>
         """,
             unsafe_allow_html=True,
         )
+        if st.button("➜ Gerenciamento de usuários", key="card_btn_alunos"):
+            st.session_state.pagina = "Alunos"
+            st.rerun()
 
     with col2:
         st.markdown(
@@ -142,12 +146,15 @@ def tela_home(sistema):
             <div class="feature-icon"><img src="{ICONS['livro']}" width="50" height="50" alt="Disciplinas"></div>
             <div class="feature-title">Disciplinas</div>
             <div class="feature-text">Gerencie disciplinas, professores e organização do semestre.</div>
-            <div class="feature-link">➜ Organização acadêmica</div>
         </div>
         """,
             unsafe_allow_html=True,
         )
+        if st.button("➜ Organização acadêmica", key="card_btn_disciplinas"):
+            st.session_state.pagina = "Disciplinas"
+            st.rerun()
 
+    # ------------------ LINHA 2 ------------------
     col3, col4 = st.columns(2)
 
     with col3:
@@ -157,11 +164,13 @@ def tela_home(sistema):
             <div class="feature-icon"><img src="{ICONS['chat']}" width="50" height="50" alt="Feed"></div>
             <div class="feature-title">Feed Acadêmico</div>
             <div class="feature-text">Compartilhe materiais, publique dúvidas e interaja com outros alunos.</div>
-            <div class="feature-link">➜ Compartilhar conhecimento</div>
         </div>
         """,
             unsafe_allow_html=True,
         )
+        if st.button("➜ Compartilhar conhecimento", key="card_btn_feed"):
+            st.session_state.pagina = "Feed"
+            st.rerun()
 
     with col4:
         st.markdown(
@@ -170,11 +179,13 @@ def tela_home(sistema):
             <div class="feature-icon"><img src="{ICONS['dashboard']}" width="50" height="50" alt="Dashboard"></div>
             <div class="feature-title">Dashboard</div>
             <div class="feature-text">Visualize indicadores e acompanhe as estatísticas do sistema.</div>
-            <div class="feature-link">➜ Visualizar métricas</div>
         </div>
         """,
             unsafe_allow_html=True,
         )
+        if st.button("➜ Visualizar métricas", key="card_btn_estatisticas"):
+            st.session_state.pagina = "Estatísticas"
+            st.rerun()
 
     st.divider()
 
@@ -183,131 +194,186 @@ def tela_home(sistema):
     O **FocusU** é uma plataforma desenvolvida para auxiliar estudantes universitários na organização da vida acadêmica.
     O sistema reúne gerenciamento de disciplinas, rotinas, compartilhamento de materiais e interação entre alunos em um único ambiente.
     """)
-
 # ==========================================================
-# 2. TELA ALUNOS
+# 2. TELA ALUNOS (LOGIN & SESSÃO ÚNICA)
 # ==========================================================
 def tela_alunos(sistema):
-    st.markdown("<h1>Gerenciamento de Alunos</h1>", unsafe_allow_html=True)
-    st.write(
-        "Cadastre novos estudantes e gerencie a lista de alunos ativos no sistema."
-    )
+    st.markdown("<h1>Meu Perfil & Sessão</h1>", unsafe_allow_html=True)
 
-    col_form, col_lista = st.columns([0.4, 0.6], gap="large")
+    # Recupera o aluno logado na sessão ativa
+    aluno_logado = st.session_state.get("aluno_logado", None)
 
-    with col_form:
-        st.subheader("➕ Cadastrar Aluno")
+    # ==========================================================
+    # CASO 1: ALUNO LOGADO NA SESSÃO
+    # ==========================================================
+    if aluno_logado:
+        col_tit, col_logout = st.columns([0.7, 0.3])
+        with col_tit:
+            st.write("Gerencie seu perfil acadêmico e acompanhe seu progresso.")
+        with col_logout:
+            if st.button("🚪 Sair da Conta", use_container_width=True):
+                st.session_state["aluno_logado"] = None
+                st.rerun()
 
-        with st.form("cadastro_aluno", clear_on_submit=True):
-            nome = st.text_input("Nome Completo", placeholder="Ex: Maria Silva")
-            email = st.text_input(
-                "E-mail Acadêmico", placeholder="exemplo@universidade.edu.br"
-            )
-            matricula = st.text_input(
-                "Matrícula", placeholder="Ex: 2024100123"
-            )
+        # Carteirinha do Aluno
+        with st.container(border=True):
+            col_avatar_p, col_info_p = st.columns([0.25, 0.75])
 
-            foto_upload = st.file_uploader(
-                "Foto de Perfil (Opcional)",
-                type=["png", "jpg", "jpeg"],
-                help="Envie uma foto de perfil do aluno.",
-            )
+            foto_aluno_p = getattr(aluno_logado, "foto_b64", None)
 
-            cadastrar = st.form_submit_button(
-                "Cadastrar Aluno", use_container_width=True, type="primary"
-            )
+            with col_avatar_p:
+                if foto_aluno_p:
+                    st.markdown(
+                        f"""
+                        <img src="{foto_aluno_p}" style="
+                            width: 90px; height: 90px; border-radius: 50%;
+                            object-fit: cover; border: 3px solid #6C5CE7;
+                        ">
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    inicial_p = (
+                        aluno_logado.nome[0].upper() if aluno_logado.nome else "👤"
+                    )
+                    st.markdown(
+                        f"""
+                        <div style="
+                            background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+                            width: 90px; height: 90px; border-radius: 50%;
+                            display: flex; align-items: center; justify-content: center;
+                            font-size: 36px; font-weight: bold; color: white;
+                        ">
+                            {inicial_p}
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
-        if cadastrar:
-            if not nome or not email or not matricula:
-                st.warning("⚠️ Preencha todos os campos obrigatórios.")
+            with col_info_p:
+                st.markdown(f"<h3 style='margin:0; color:white;'>{aluno_logado.nome}</h3>", unsafe_allow_html=True)
+                st.caption(f"📧 {aluno_logado.email}  |  🆔 Matrícula: **{aluno_logado.matricula}**")
+
+                minutos_estudo = aluno_logado.calcular_tempo_estudo_recursivo()
+                horas = minutos_estudo // 60
+                mins = minutos_estudo % 60
+                st.markdown(f"⏱️ **Tempo Total Dedicado:** `{horas}h {mins}min`")
+
+        # Progresso + Tarefas Pendentes
+        col_prog, col_pend = st.columns(2)
+
+        with col_prog:
+            st.markdown("##### 📊 Progresso Acadêmico")
+            progresso = aluno_logado.calcular_progresso_estudos(sistema)
+            st.progress(progresso / 100.0)
+            st.caption(f"**{progresso}%** das atividades do sistema foram concluídas!")
+
+        with col_pend:
+            st.markdown("##### 📌 Tarefas Pendentes")
+            tarefas_pendentes = aluno_logado.obter_tarefas_pendentes(sistema)
+            if tarefas_pendentes:
+                for t in tarefas_pendentes[:2]:
+                    st.warning(f"**{t['titulo']}** ({t['disciplina']}) — Entrega: `{t['data_entrega']}`")
             else:
-                try:
-                    foto_b64 = uploaded_file_to_base64(foto_upload)
-                    aluno = Aluno(nome=nome, email=email, matricula=matricula)
-                    setattr(aluno, "foto_b64", foto_b64)
+                st.success("Nenhuma tarefa pendente no momento! 🎉")
 
-                    # 1. Adiciona o aluno na memória
-                    sistema.adicionar_aluno(aluno)
+        st.divider()
 
-                    # 2. SALVA NO BANCO DE DADOS (JSON) AQUI!
-                    salvar_sistema_json(sistema)
+        # Editar Perfil
+        with st.expander("✏️ Editar Meu Perfil"):
+            with st.form("form_editar_perfil"):
+                novo_nome = st.text_input("Novo Nome", value=aluno_logado.nome)
+                novo_email = st.text_input("Novo E-mail", value=aluno_logado.email)
+                nova_foto = st.file_uploader("Trocar Foto", type=["png", "jpg", "jpeg"])
 
-                    st.success(f"✅ Aluno **{nome}** cadastrado com sucesso!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Erro ao cadastrar: {str(e)}")
+                if st.form_submit_button("Salvar Alterações", type="primary"):
+                    try:
+                        b64_foto = None
+                        if nova_foto:
+                            b64_foto = uploaded_file_to_base64(nova_foto)
 
-    with col_lista:
-        total_alunos = len(sistema.alunos_por_matricula)
-        st.subheader(f"👥 Alunos Cadastrados ({total_alunos})")
+                        aluno_logado.atualizar_perfil(novo_nome, novo_email, b64_foto)
+                        salvar_sistema_json(sistema)
 
-        if total_alunos > 0:
-            termo_busca = st.text_input(
-                "🔍 Buscar aluno",
-                placeholder="Digite o nome ou matrícula...",
-                label_visibility="collapsed",
-            )
+                        st.success("✅ Perfil atualizado com sucesso!")
+                        st.rerun()
+                    except Exception as err:
+                        st.error(f"❌ Erro ao atualizar: {err}")
 
-            st.markdown("<br>", unsafe_allow_html=True)
+    # ==========================================================
+    # CASO 2: SEM SESSÃO ATIVA (LOGIN OU REGISTRO)
+    # ==========================================================
+    else:
+        st.info("👋 Faça login com sua matrícula e senha ou crie uma conta para acessar o sistema.")
 
-            alunos_filtrados = [
-                a
-                for a in sistema.alunos_por_matricula.values()
-                if (
-                    termo_busca.lower() in a.nome.lower()
-                    or termo_busca in a.matricula
-                )
-            ]
+        tab_login, tab_cadastrar = st.tabs(["🔑 Entrar", "➕ Criar Conta"])
 
-            if not alunos_filtrados:
-                st.info("Nenhum aluno encontrado para essa busca.")
-            else:
-                for aluno in alunos_filtrados:
-                    with st.container(border=True):
-                        c_avatar, c_info = st.columns([0.22, 0.78])
+        # --- ABA LOGIN ---
+        with tab_login:
+            st.subheader("Acessar Conta")
+            with st.form("form_login"):
+                matricula_login = st.text_input("Matrícula", placeholder="Digite sua matrícula")
+                senha_login = st.text_input("Senha", type="password", placeholder="Digite sua senha")
 
-                        foto_aluno = getattr(aluno, "foto_b64", None)
+                entrar = st.form_submit_button("Entrar", type="primary", use_container_width=True)
 
-                        with c_avatar:
-                            if foto_aluno:
-                                st.markdown(
-                                    f"""
-                                    <img src="{foto_aluno}" style="
-                                        width: 55px; height: 55px; border-radius: 50%;
-                                        object-fit: cover; border: 2px solid #6C5CE7;
-                                    ">
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
-                            else:
-                                inicial = (
-                                    aluno.nome[0].upper() if aluno.nome else "👤"
-                                )
-                                st.markdown(
-                                    f"""
-                                    <div style="
-                                        background: linear-gradient(135deg, #6C5CE7, #A29BFE);
-                                        width: 55px; height: 55px; border-radius: 50%;
-                                        display: flex; align-items: center; justify-content: center;
-                                        font-size: 22px; font-weight: bold; color: white;
-                                    ">
-                                        {inicial}
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
+            if entrar:
+                if not matricula_login or not senha_login:
+                    st.warning("⚠️ Preencha a matrícula e a senha.")
+                else:
+                    # Busca o aluno no dicionário de matrículas
+                    aluno_encontrado = sistema.alunos_por_matricula.get(matricula_login.strip())
+                    
+                    # Verifica a senha (usando atributo `senha` do objeto Aluno)
+                    senha_salva = getattr(aluno_encontrado, "senha", None) if aluno_encontrado else None
 
-                        with c_info:
-                            st.markdown(
-                                f"<h4 style='margin:0; color:white;'>{aluno.nome}</h4>",
-                                unsafe_allow_html=True,
-                            )
-                            st.caption(
-                                f"📧 {aluno.email}  |  🆔 Matrícula: **{aluno.matricula}**"
-                            )
+                    if aluno_encontrado and senha_salva == senha_login:
+                        st.session_state["aluno_logado"] = aluno_encontrado
+                        st.success(f"✅ Bem-vindo(a) de volta, {aluno_encontrado.nome}!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Matrícula ou senha incorretas.")
 
-        else:
-            st.info("Nenhum aluno cadastrado no momento.")
+        # --- ABA CADASTRO ---
+        with tab_cadastrar:
+            st.subheader("Criar Nova Conta")
+            with st.form("form_cadastro", clear_on_submit=True):
+                nome = st.text_input("Nome Completo", placeholder="Ex: Maria Silva")
+                email = st.text_input("E-mail Acadêmico", placeholder="exemplo@universidade.edu.br")
+                matricula = st.text_input("Matrícula", placeholder="Ex: 2024100123")
+                senha = st.text_input("Senha", type="password", placeholder="Crie uma senha de acesso")
+
+                foto_upload = st.file_uploader("Foto de Perfil (Opcional)", type=["png", "jpg", "jpeg"])
+
+                cadastrar = st.form_submit_button("Cadastrar e Entrar", use_container_width=True, type="primary")
+
+            if cadastrar:
+                if not nome or not email or not matricula or not senha:
+                    st.warning("⚠️ Preencha todos os campos obrigatórios (incluindo a senha).")
+                elif matricula.strip() in sistema.alunos_por_matricula:
+                    st.error("❌ Esta matrícula já está cadastrada no sistema.")
+                else:
+                    try:
+                        foto_b64 = uploaded_file_to_base64(foto_upload) if foto_upload else None
+                        
+                        aluno = Aluno(nome=nome.strip(), email=email.strip(), matricula=matricula.strip())
+                        
+                        # Atribui a senha e a foto ao objeto
+                        setattr(aluno, "senha", senha)
+                        if foto_b64:
+                            setattr(aluno, "foto_b64", foto_b64)
+
+                        # Salva no sistema e no JSON
+                        sistema.adicionar_aluno(aluno)
+                        salvar_sistema_json(sistema)
+
+                        # Inicia sessão diretamente
+                        st.session_state["aluno_logado"] = aluno
+
+                        st.success(f"✅ Conta criada com sucesso! Bem-vindo(a), {nome}!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Erro ao cadastrar: {str(e)}")
 
 # ==========================================================
 # 3. TELA DISCIPLINAS
@@ -531,14 +597,15 @@ def tela_agenda(sistema):
                 st.divider()
 
 # ==========================================================
-# 5. TELA FEED
+# 5. TELA FEED (INTEGRADA COM ALUNO LOGADO)
 # ==========================================================
 def tela_feed(sistema):
     st.markdown("<h1>Feed da Comunidade</h1>", unsafe_allow_html=True)
 
     tab_feed, tab_novo = st.tabs(["📸 Feed", "➕ Nova Publicação"])
 
-    alunos_disponiveis = list(sistema.alunos_por_matricula.values())
+    # Recupera o aluno logado na sessão
+    aluno_logado = st.session_state.get("aluno_logado", None)
 
     with tab_feed:
         feed_items = sistema.postagens + sistema.eventos
@@ -633,7 +700,7 @@ def tela_feed(sistema):
                         ):
                             item.curtir()
 
-                            #  SALVA NO BANCO DE DADOS (JSON)
+                            # SALVA NO BANCO DE DADOS (JSON)
                             salvar_sistema_json(sistema)
 
                             st.rerun()
@@ -676,25 +743,12 @@ def tela_feed(sistema):
                         with st.form(
                             key=f"form_coment_{idx}", clear_on_submit=True
                         ):
-                            c_user, c_input, c_btn = st.columns([0.3, 0.55, 0.15])
-
-                            with c_user:
-                                comentador = st.selectbox(
-                                    "Quem comenta",
-                                    options=alunos_disponiveis
-                                    if alunos_disponiveis
-                                    else ["Usuário"],
-                                    format_func=lambda a: a.nome
-                                    if hasattr(a, "nome")
-                                    else str(a),
-                                    label_visibility="collapsed",
-                                    key=f"sel_{idx}",
-                                )
+                            c_input, c_btn = st.columns([0.8, 0.2])
 
                             with c_input:
                                 txt_coment = st.text_input(
                                     "Adicionar comentário...",
-                                    placeholder="Adicionar comentário...",
+                                    placeholder="Adicionar comentário como " + (aluno_logado.nome if aluno_logado else "visitante") + "...",
                                     label_visibility="collapsed",
                                     key=f"in_{idx}",
                                 )
@@ -702,19 +756,18 @@ def tela_feed(sistema):
                             with c_btn:
                                 if st.form_submit_button("Publicar"):
                                     if txt_coment.strip():
-                                        autor_nome_c = (
-                                            comentador.nome
-                                            if hasattr(comentador, "nome")
-                                            else "Usuário"
-                                        )
-                                        item.comentar(
-                                            f"{autor_nome_c}::{txt_coment.strip()}"
-                                        )
+                                        if not aluno_logado:
+                                            st.error("⚠️ Faça login para comentar.")
+                                        else:
+                                            autor_nome_c = aluno_logado.nome
+                                            item.comentar(
+                                                f"{autor_nome_c}::{txt_coment.strip()}"
+                                            )
 
-                                        #  SALVA NO BANCO DE DADOS (JSON)
-                                        salvar_sistema_json(sistema)
+                                            # SALVA NO BANCO DE DADOS (JSON)
+                                            salvar_sistema_json(sistema)
 
-                                        st.rerun()
+                                            st.rerun()
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -727,19 +780,15 @@ def tela_feed(sistema):
             horizontal=True,
         )
 
-        if not alunos_disponiveis and categoria != "Evento":
+        if not aluno_logado and categoria != "Evento":
             st.warning(
-                "⚠️ Cadastre pelo menos um aluno na aba 'Alunos' antes de criar"
-                " uma postagem."
+                "⚠️ Faça login ou selecione o seu perfil de aluno na aba 'Alunos' antes de criar uma postagem."
             )
         else:
             with st.form("form_nova_pub", clear_on_submit=True):
                 if categoria != "Evento":
-                    aluno_selecionado = st.selectbox(
-                        "Autor da Publicação",
-                        options=alunos_disponiveis,
-                        format_func=lambda a: f"{a.nome} ({a.matricula})",
-                    )
+                    st.info(f"👤 Publicando como: **{aluno_logado.nome}** (`{aluno_logado.matricula}`)")
+
                     titulo = st.text_input(
                         "Título", placeholder="Ex: Foto no campus"
                     )
@@ -769,21 +818,23 @@ def tela_feed(sistema):
                             st.warning("⚠️ Preencha o título e a legenda.")
                         else:
                             try:
-                                foto_b64 = uploaded_file_to_base64(
-                                    foto_post_upload
+                                foto_b64 = (
+                                    uploaded_file_to_base64(foto_post_upload)
+                                    if foto_post_upload
+                                    else None
                                 )
 
                                 if categoria == "Post Geral":
                                     post = Postagem(
                                         titulo=titulo.strip(),
                                         conteudo=conteudo.strip(),
-                                        autor=aluno_selecionado,
+                                        autor=aluno_logado,
                                     )
                                 elif categoria == "Dúvida":
                                     post = PostagemDuvida(
                                         titulo=titulo.strip(),
                                         conteudo=conteudo.strip(),
-                                        autor=aluno_selecionado,
+                                        autor=aluno_logado,
                                         disciplina=disciplina_nome.strip()
                                         or "Geral",
                                     )
@@ -791,15 +842,17 @@ def tela_feed(sistema):
                                     post = PostagemMaterial(
                                         titulo=titulo.strip(),
                                         conteudo=conteudo.strip(),
-                                        autor=aluno_selecionado,
+                                        autor=aluno_logado,
                                         link_download=link_download.strip()
                                         or "#",
                                     )
 
-                                setattr(post, "foto_post_b64", foto_b64)
+                                if foto_b64:
+                                    setattr(post, "foto_post_b64", foto_b64)
+
                                 sistema.adicionar_postagem(post)
 
-                                # 🟢 SALVA NO BANCO DE DADOS (JSON)
+                                # SALVA NO BANCO DE DADOS (JSON)
                                 salvar_sistema_json(sistema)
 
                                 st.success("✅ Publicado com sucesso!")
@@ -833,14 +886,13 @@ def tela_feed(sistema):
                                 )
                                 sistema.adicionar_evento(evento)
 
-                                # 🟢 SALVA NO BANCO DE DADOS (JSON)
+                                # SALVA NO BANCO DE DADOS (JSON)
                                 salvar_sistema_json(sistema)
 
                                 st.success("✅ Evento criado com sucesso!")
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Erro ao criar evento: {str(e)}")
-
 # ==========================================================
 # 6. TELA DE ESTATÍSTICAS E DASHBOARD
 # ==========================================================

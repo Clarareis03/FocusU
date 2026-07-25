@@ -1,29 +1,27 @@
 from pathlib import Path
 import sys
 
-# ==========================================================
-# AJUSTE DE CAMINHOS PARA O STREAMLIT CLOUD (RAIZ DO PROJETO)
-# ==========================================================
 WEB_DIR = Path(__file__).resolve().parent
 SRC_DIR = WEB_DIR.parent
 PROJECT_ROOT = SRC_DIR.parent
 
-# Adiciona a raiz do projeto e a pasta src ao sys.path
-for caminho in [str(PROJECT_ROOT), str(SRC_DIR), str(WEB_DIR)]:
-    if caminho not in sys.path:
-        sys.path.insert(0, caminho)
+for c in [str(PROJECT_ROOT), str(SRC_DIR), str(WEB_DIR)]:
+    if c not in sys.path:
+        sys.path.insert(0, c)
 
 import streamlit as st
-from css import carregar_css
-from paginas import (
-    tela_agenda,  # <-- Importação da Agenda adicionada
+
+# Importando via estrutura de pastas do projeto
+from src.web.css import carregar_css
+from src.web.paginas import (
+    tela_agenda,
     tela_alunos,
     tela_disciplinas,
     tela_estatisticas,
     tela_feed,
     tela_home,
 )
-from system.sistema import SistemaFocusU
+from src.system.sistema import SistemaFocusU
 
 # Configuração da página
 st.set_page_config(page_title="FocusU", page_icon="🎓", layout="wide")
