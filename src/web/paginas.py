@@ -478,9 +478,8 @@ def tela_disciplinas(sistema):
 
         else:
             st.info("Nenhuma disciplina cadastrada no momento.")
-
 # ==========================================================
-# 4. TELA AGENDA (Atualizada com OO)
+# 4. TELA AGENDA (Atualizada com OO e Fallback Seguro)
 # ==========================================================
 def tela_agenda(sistema):
     st.markdown("<h1>📅 Agenda de Tarefas</h1>", unsafe_allow_html=True)
@@ -526,17 +525,22 @@ def tela_agenda(sistema):
                     st.error("⚠️ O título da tarefa é obrigatório!")
                 else:
                     disciplina_obj = dict_disciplinas[nome_disc_selecionada]
-                    tarefa_criada = disciplina_obj.adicionar_tarefa(
-                        titulo=titulo.strip(),
-                        data_entrega=data_entrega,
-                        tipo=tipo,
-                        descricao=descricao.strip()
-                    )
+                    
+                    if hasattr(disciplina_obj, "adicionar_tarefa"):
+                        tarefa_criada = disciplina_obj.adicionar_tarefa(
+                            titulo=titulo.strip(),
+                            data_entrega=data_entrega,
+                            tipo=tipo,
+                            descricao=descricao.strip()
+                        )
+                    else:
+                        st.error("Erro no objeto da disciplina. Recarregue a página ou cadastre novamente.")
+                        return
 
-                    #  SALVA NO BANCO DE DADOS (JSON)
+                    # SALVA NO BANCO DE DADOS (JSON)
                     salvar_sistema_json(sistema)
 
-                    st.success(f"✅ Tarefa **'{tarefa_criada.titulo}'** adicionada à disciplina **{nome_disc_selecionada}**!")
+                    st.success(f"✅ Tarefa **'{getattr(tarefa_criada, 'titulo', titulo)}'** adicionada à disciplina **{nome_disc_selecionada}**!")
                     st.rerun()
 
     st.markdown("### 📚 Tarefas por Disciplina")
@@ -555,10 +559,17 @@ def tela_agenda(sistema):
         status_param = "concluidas"
 
     for nome_disc, disciplina_obj in dict_disciplinas.items():
-        tarefas_brutas = disciplina_obj.listar_tarefas(status=status_param)
+        # --- BUSCA SEGURA DE TAREFAS ---
+        if hasattr(disciplina_obj, "listar_tarefas") and callable(getattr(disciplina_obj, "listar_tarefas")):
+            tarefas_brutas = disciplina_obj.listar_tarefas(status=status_param)
+        elif isinstance(disciplina_obj, dict):
+            # Trata dados legados salvos como dict puro no JSON
+            dict_t = disciplina_obj.get("_tarefas", {})
+            tarefas_brutas = list(dict_t.values()) if isinstance(dict_t, dict) else dict_t
+        else:
+            tarefas_brutas = []
 
         # FILTRAGEM DE SEGURANÇA NA INTERFACE:
-        # Garante que apenas tarefas do status selecionado serão exibidas
         if filtro_status == "Pendentes":
             tarefas = [t for t in tarefas_brutas if not getattr(t, "concluida", False)]
         elif filtro_status == "Concluídas":
@@ -574,46 +585,57 @@ def tela_agenda(sistema):
             for tarefa in tarefas:
                 col_check, col_info = st.columns([0.08, 0.92])
 
+                # Recupera propriedades de forma segura para objetos ou dicts
+                t_id = getattr(tarefa, "id", tarefa.get("id") if isinstance(tarefa, dict) else None)
+                t_tipo = getattr(tarefa, "tipo", tarefa.get("tipo", "Geral") if isinstance(tarefa, dict) else "Geral")
+                t_titulo = getattr(tarefa, "titulo", tarefa.get("titulo", "") if isinstance(tarefa, dict) else "")
+                t_data = getattr(tarefa, "data_entrega", tarefa.get("data_entrega") if isinstance(tarefa, dict) else None)
+                t_desc = getattr(tarefa, "descricao", tarefa.get("descricao", "") if isinstance(tarefa, dict) else "")
+                ja_concluida = getattr(tarefa, "concluida", tarefa.get("concluida", False) if isinstance(tarefa, dict) else False)
+
                 with col_check:
-                    ja_concluida = getattr(tarefa, "concluida", False)
                     marcado = st.checkbox(
                         label="Concluir",
                         value=ja_concluida,
-                        key=f"chk_{tarefa.id}",
+                        key=f"chk_{t_id}",
                         label_visibility="collapsed"
                     )
 
                     if marcado != ja_concluida:
                         if marcado:
                             if hasattr(disciplina_obj, "concluir_tarefa"):
-                                disciplina_obj.concluir_tarefa(tarefa.id)
+                                disciplina_obj.concluir_tarefa(t_id)
+                            elif isinstance(tarefa, dict):
+                                tarefa["concluida"] = True
                             else:
                                 tarefa.concluida = True
                         else:
-                            tarefa.concluida = False
+                            if isinstance(tarefa, dict):
+                                tarefa["concluida"] = False
+                            else:
+                                tarefa.concluida = False
 
-                        #  SALVA NO BANCO DE DADOS (JSON)
+                        # SALVA NO BANCO DE DADOS (JSON)
                         salvar_sistema_json(sistema)
 
                         st.rerun()
 
                 with col_info:
-                    icone = icones_tipo.get(tarefa.tipo, "📌")
-                    data_str = tarefa.data_entrega.strftime("%d/%m/%Y") if hasattr(tarefa.data_entrega, "strftime") else str(tarefa.data_entrega)
+                    icone = icones_tipo.get(t_tipo, "📌")
+                    data_str = t_data.strftime("%d/%m/%Y") if hasattr(t_data, "strftime") else str(t_data)
 
-                    if tarefa.concluida:
-                        st.markdown(f"~~{icone} **[{tarefa.tipo}]** {tarefa.titulo} — *Vencimento: {data_str}*~~")
+                    if ja_concluida:
+                        st.markdown(f"~~{icone} **[{t_tipo}]** {t_titulo} — *Vencimento: {data_str}*~~")
                     else:
-                        st.markdown(f"{icone} **[{tarefa.tipo}]** **{tarefa.titulo}** — 🗓️ *Vencimento: {data_str}*")
+                        st.markdown(f"{icone} **[{t_tipo}]** **{t_titulo}** — 🗓️ *Vencimento: {data_str}*")
 
-                    if tarefa.descricao:
-                        st.caption(f"💬 {tarefa.descricao}")
+                    if t_desc:
+                        st.caption(f"💬 {t_desc}")
 
-                    if not tarefa.concluida and isinstance(tarefa.data_entrega, date) and tarefa.data_entrega < date.today():
+                    if not ja_concluida and isinstance(t_data, date) and t_data < date.today():
                         st.warning("⚠️ Esta tarefa está em atraso!")
 
                 st.divider()
-
 # ==========================================================
 # 5. TELA FEED (INTEGRADA COM ALUNO LOGADO)
 # ==========================================================

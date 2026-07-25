@@ -41,10 +41,25 @@ class Disciplina:
 
     def listar_tarefas(self, status=None):
         tarefas = list(self._tarefas.values())
-        if status == "pendentes":
-            return [t for t in tarefas if not t.concluida]
-        if status == "concluidas":
-            return [t for t in tarefas if t.concluida]
+        
+        if not status or str(status).lower() in ["todas", "todos"]:
+            return tarefas
+
+        # Trata acentos e maiúsculas (ex: "Concluídas" -> "concluidas")
+        st_clean = (
+            str(status)
+            .lower()
+            .replace("í", "i")
+            .replace("á", "a")
+            .strip()
+        )
+
+        if st_clean in ["pendente", "pendentes"]:
+            return [t for t in tarefas if not getattr(t, "concluida", False)]
+        
+        if st_clean in ["concluida", "concluidas"]:
+            return [t for t in tarefas if getattr(t, "concluida", False)]
+
         return tarefas
 
     def __str__(self):
