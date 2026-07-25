@@ -1,13 +1,16 @@
 from pathlib import Path
 import sys
 
+# Configura os caminhos absolutos dos diretórios no sistema
 WEB_DIR = Path(__file__).resolve().parent
 SRC_DIR = WEB_DIR.parent
 PROJECT_ROOT = SRC_DIR.parent
 
-for c in [str(PROJECT_ROOT), str(SRC_DIR), str(WEB_DIR)]:
-    if c not in sys.path:
-        sys.path.insert(0, c)
+# Adiciona todas as pastas chave no sys.path
+for path in [PROJECT_ROOT, SRC_DIR, WEB_DIR]:
+    path_str = str(path)
+    if path_str not in sys.path:
+        sys.path.insert(0, path_str)
 
 import streamlit as st
 
@@ -23,15 +26,14 @@ from src.web.paginas import (
 )
 from src.system.sistema import SistemaFocusU
 
-# CRUCIAL: Importa as funções de carregar/salvar JSON
-# (Caso o arquivo com as funções do JSON esteja em outro caminho, ajuste esta linha)
+# Tenta os caminhos possíveis do módulo de banco sem quebrar a aplicação
 try:
-    from src.system.banco import carregar_sistema_json, salvar_sistema_json
-except ImportError:
+    from banco import carregar_sistema_json, salvar_sistema_json
+except ModuleNotFoundError:
     try:
-        from banco import carregar_sistema_json, salvar_sistema_json
-    except ImportError:
         from src.banco import carregar_sistema_json, salvar_sistema_json
+    except ModuleNotFoundError:
+        from src.system.banco import carregar_sistema_json, salvar_sistema_json
 
 # Configuração da página
 st.set_page_config(page_title="FocusU", page_icon="🎓", layout="wide")
@@ -39,21 +41,12 @@ st.set_page_config(page_title="FocusU", page_icon="🎓", layout="wide")
 # Aplica o CSS
 st.markdown(carregar_css(), unsafe_allow_html=True)
 
-# ==========================================================
-# INICIALIZAÇÃO E CARREGAMENTO DO BANCO DE DADOS (JSON)
-# ==========================================================
+# Inicializa e carrega o sistema do banco JSON
 if "sistema" not in st.session_state:
-    # 1. Instancia a classe principal
     instancia_sistema = SistemaFocusU()
-    # 2. POPULA o sistema com os dados salvos do JSON antes de colocar na sessão!
     st.session_state.sistema = carregar_sistema_json(instancia_sistema)
 
-# Guarda a página atual no state
-if "pagina" not in st.session_state:
-    st.session_state.pagina = "Home"
-
-sistema = st.session_state.sistema
-ASSETS_DIR = WEB_DIR / "assets"
+# ... restante do seu código permanece igual ...
 
 # ==========================================================
 # SIDEBAR / MENU LATERAL
