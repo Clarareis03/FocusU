@@ -746,20 +746,50 @@ def tela_feed(sistema):
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
-                    if not is_evento and hasattr(item, "curtir"):
+                    # ==========================================================
+                    # LÓGICA DE CURTIDA ÚNICA COM TOGGLE
+                    # ==========================================================
+                    if not is_evento:
                         st.markdown(
                             '<div style="padding: 6px 14px;">',
                             unsafe_allow_html=True,
                         )
+
+                        # Inicializa a lista/conjunto de curtidores no objeto se não existir
+                        if not hasattr(item, "curtidores") or not isinstance(item.curtidores, set):
+                            if hasattr(item, "curtidores") and isinstance(item.curtidores, list):
+                                item.curtidores = set(item.curtidores)
+                            else:
+                                item.curtidores = set()
+
+                        # Identificador do aluno (usando matrícula ou fallback para id/sessão)
+                        user_id = getattr(aluno_logado, "matricula", None) if aluno_logado else "anonimo"
+                        
+                        ja_curtiu = user_id in item.curtidores
+                        icone_like = "❤️" if ja_curtiu else "🤍"
+                        total_likes = len(item.curtidores) if item.curtidores else getattr(item, "curtidas", 0)
+
                         if st.button(
-                            f"❤️ {item.curtidas} curtidas", key=f"like_{idx}"
+                            f"{icone_like} {total_likes} curtidas", key=f"like_{idx}"
                         ):
-                            item.curtir()
+                            if not aluno_logado:
+                                st.warning("⚠️ Faça login para curtir esta publicação.")
+                            else:
+                                if ja_curtiu:
+                                    item.curtidores.remove(user_id)
+                                else:
+                                    item.curtidores.add(user_id)
 
-                            # SALVA NO BANCO DE DADOS (JSON)
-                            salvar_sistema_json(sistema)
+                                # Atualiza o atributo clássico 'curtidas' com a contagem exata
+                                item.curtidas = len(item.curtidores)
 
-                            st.rerun()
+                                # Compatibilidade para salvar JSON (converte set para list)
+                                item.curtidores_list = list(item.curtidores)
+
+                                # SALVA NO BANCO DE DADOS (JSON)
+                                salvar_sistema_json(sistema)
+                                st.rerun()
+
                         st.markdown("</div>", unsafe_allow_html=True)
 
                     if not is_evento and hasattr(item, "comentarios"):
