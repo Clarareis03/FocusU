@@ -23,15 +23,30 @@ from src.web.paginas import (
 )
 from src.system.sistema import SistemaFocusU
 
+# CRUCIAL: Importa as funções de carregar/salvar JSON
+# (Caso o arquivo com as funções do JSON esteja em outro caminho, ajuste esta linha)
+try:
+    from src.system.banco import carregar_sistema_json, salvar_sistema_json
+except ImportError:
+    try:
+        from banco import carregar_sistema_json, salvar_sistema_json
+    except ImportError:
+        from src.banco import carregar_sistema_json, salvar_sistema_json
+
 # Configuração da página
 st.set_page_config(page_title="FocusU", page_icon="🎓", layout="wide")
 
 # Aplica o CSS
 st.markdown(carregar_css(), unsafe_allow_html=True)
 
-# Inicializa o Sistema no state
+# ==========================================================
+# INICIALIZAÇÃO E CARREGAMENTO DO BANCO DE DADOS (JSON)
+# ==========================================================
 if "sistema" not in st.session_state:
-    st.session_state.sistema = SistemaFocusU()
+    # 1. Instancia a classe principal
+    instancia_sistema = SistemaFocusU()
+    # 2. POPULA o sistema com os dados salvos do JSON antes de colocar na sessão!
+    st.session_state.sistema = carregar_sistema_json(instancia_sistema)
 
 # Guarda a página atual no state
 if "pagina" not in st.session_state:
@@ -65,7 +80,7 @@ with st.sidebar:
         ("Home", "home"),
         ("Alunos", "person"),
         ("Disciplinas", "menu_book"),
-        ("Agenda", "calendar_today"),  # <-- Item da Agenda adicionado ao menu
+        ("Agenda", "calendar_today"),
         ("Feed", "forum"),
         ("Estatísticas", "bar_chart"),
     ]
@@ -86,6 +101,14 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
+
+    # Botão extra para forçar persistência manual se necessário
+    if st.button("💾 Salvar Dados Agora", use_container_width=True):
+        if salvar_sistema_json(sistema):
+            st.toast("Dados salvos no JSON!", icon="✅")
+        else:
+            st.toast("Erro ao salvar dados.", icon="❌")
+
     st.caption("Desenvolvido por Ayra, Bia e Clara")
 
 # ==========================================================
@@ -100,7 +123,7 @@ elif pagina_atual == "Alunos":
 elif pagina_atual == "Disciplinas":
     tela_disciplinas(sistema)
 elif pagina_atual == "Agenda":
-    tela_agenda(sistema)  # <-- Rota da Agenda adicionada
+    tela_agenda(sistema)
 elif pagina_atual == "Feed":
     tela_feed(sistema)
 elif pagina_atual == "Estatísticas":
