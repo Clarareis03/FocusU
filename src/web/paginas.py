@@ -255,10 +255,12 @@ def tela_alunos(sistema):
                 st.markdown(f"<h3 style='margin:0; color:white;'>{nome_aluno}</h3>", unsafe_allow_html=True)
                 st.caption(f"📧 {email_aluno}  |  🆔 Matrícula: **{matricula_aluno}**")
 
-                # Chamada segura do cálculo do tempo
-                if hasattr(aluno_logado, "calcular_tempo_estudo_recursivo"):
-                    minutos_estudo = aluno_logado.calcular_tempo_estudo_recursivo()
-                else:
+                # Chamada segura do cálculo do tempo com try/except
+                minutos_estudo = 0
+                try:
+                    if hasattr(aluno_logado, "calcular_tempo_estudo_recursivo"):
+                        minutos_estudo = aluno_logado.calcular_tempo_estudo_recursivo()
+                except Exception:
                     minutos_estudo = 0
 
                 horas = minutos_estudo // 60
@@ -271,27 +273,41 @@ def tela_alunos(sistema):
         with col_prog:
             st.markdown("##### 📊 Progresso Acadêmico")
             
-            # Chamada segura com fallback para evitar o AttributeError
-            if hasattr(aluno_logado, "calcular_progresso_estudos"):
-                progresso = aluno_logado.calcular_progresso_estudos(sistema)
-            else:
+            # Chamada isolada por try/except para impedir qualquer queda da aplicação
+            progresso = 0.0
+            try:
+                if hasattr(aluno_logado, "calcular_progresso_estudos"):
+                    progresso = aluno_logado.calcular_progresso_estudos(sistema)
+            except Exception:
                 progresso = 0.0
 
-            st.progress(min(max(float(progresso) / 100.0, 0.0), 1.0))
-            st.caption(f"**{progresso}%** das atividades do sistema foram concluídas!")
+            # Garantia de valor float limpo
+            try:
+                val_progresso = float(progresso)
+            except (ValueError, TypeError):
+                val_progresso = 0.0
+
+            st.progress(min(max(val_progresso / 100.0, 0.0), 1.0))
+            st.caption(f"**{val_progresso}%** das atividades do sistema foram concluídas!")
 
         with col_pend:
             st.markdown("##### 📌 Tarefas Pendentes")
             
-            # Chamada segura das tarefas pendentes
-            if hasattr(aluno_logado, "obter_tarefas_pendentes"):
-                tarefas_pendentes = aluno_logado.obter_tarefas_pendentes(sistema)
-            else:
+            # Chamada segura com bloco try/except
+            tarefas_pendentes = []
+            try:
+                if hasattr(aluno_logado, "obter_tarefas_pendentes"):
+                    tarefas_pendentes = aluno_logado.obter_tarefas_pendentes(sistema)
+            except Exception:
                 tarefas_pendentes = []
 
-            if tarefas_pendentes:
+            if tarefas_pendentes and isinstance(tarefas_pendentes, list):
                 for t in tarefas_pendentes[:2]:
-                    st.warning(f"**{t['titulo']}** ({t['disciplina']}) — Entrega: `{t['data_entrega']}`")
+                    if isinstance(t, dict):
+                        titulo = t.get('titulo', 'Sem título')
+                        disciplina = t.get('disciplina', 'Geral')
+                        data = t.get('data_entrega', 'Sem data')
+                        st.warning(f"**{titulo}** ({disciplina}) — Entrega: `{data}`")
             else:
                 st.success("Nenhuma tarefa pendente no momento! 🎉")
 
