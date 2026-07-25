@@ -110,10 +110,25 @@ class Aluno(UsuarioBase):
                     tarefas = list(tarefas.values())
 
             for tarefa in tarefas:
-                concluida = tarefa.get("concluida", False) if isinstance(tarefa, dict) else getattr(tarefa, "concluida", False)
+                if tarefa is None:
+                    continue
+
+                concluida = False
+                titulo = "Sem título"
+                data = "Sem data"
+
+                if isinstance(tarefa, dict):
+                    concluida = bool(tarefa.get("concluida", False))
+                    titulo = tarefa.get("titulo", "Sem título")
+                    data = tarefa.get("data_entrega", "Sem data")
+                elif isinstance(tarefa, str):
+                    titulo = tarefa
+                else:
+                    concluida = bool(getattr(tarefa, "concluida", False))
+                    titulo = getattr(tarefa, "titulo", "Sem título")
+                    data = getattr(tarefa, "data_entrega", "Sem data")
+
                 if not concluida:
-                    titulo = tarefa.get("titulo", "Sem título") if isinstance(tarefa, dict) else getattr(tarefa, "titulo", "Sem título")
-                    data = tarefa.get("data_entrega", "Sem data") if isinstance(tarefa, dict) else getattr(tarefa, "data_entrega", "Sem data")
                     nome_disciplina = getattr(disciplina, "nome", "Disciplina")
                     
                     tarefas_pendentes.append({
@@ -160,8 +175,19 @@ class Aluno(UsuarioBase):
                 tarefas = []
 
             for t in tarefas:
+                if t is None:
+                    continue
+                
                 total_tarefas += 1
-                if getattr(t, "concluida", False) or (isinstance(t, dict) and t.get("concluida")):
+                
+                # Validação ultra-segura para saber se a tarefa está concluída
+                is_concluida = False
+                if isinstance(t, dict):
+                    is_concluida = bool(t.get("concluida", False))
+                elif not isinstance(t, str):  # Se for um objeto Tarefa
+                    is_concluida = bool(getattr(t, "concluida", False))
+
+                if is_concluida:
                     tarefas_concluidas += 1
 
         if total_tarefas == 0:
