@@ -258,5 +258,61 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     font-size: 13px !important;
     opacity: 1 !important;
 }
+
+/* ==========================================================
+   6. SOBRESCRITA COMPLETA DE INPUTS, FORMS E ABAS
+   ========================================================== */
+
+/* --- ABAS (st.tabs) --- */
+button[data-baseweb="tab"] {
+    border-bottom-color: transparent !important;
+}
+div[data-baseweb="tab-highlight"],
+div[data-baseweb="tab-border"] {
+    background-color: #6C5CE7 !important;
+}
+button[aria-selected="true"] {
+    color: #A29BFE !important;
+}
+
+/* --- INPUTS: Remover Fundo Branco NATIVO --- */
+div[data-baseweb="input"],
+div[data-baseweb="input"] *,
+div[data-baseweb="base-input"],
+div[data-baseweb="base-input"] * {
+    background-color: #121214 !important;
+    color: #FFFFFF !important;
+}
+
+/* --- INPUTS: Remover Borda Vermelha no Foco / Hover --- */
+div[data-baseweb="input"] {
+    border: 1px solid rgba(108, 92, 231, 0.4) !important;
+    border-radius: 8px !important;
+}
+
+/* Força borda roxa e mata o outline vermelho ao clicar/focar */
+div[data-baseweb="input"]:focus-within,
+div[data-baseweb="input"]:active,
+div[data-baseweb="input"]:hover,
+div[data-baseweb="input"] > div {
+    border-color: #6C5CE7 !important;
+    box-shadow: 0 0 0 1px #6C5CE7 !important;
+}
+
+/* Tag "Press Enter to submit form" e Placeholder */
+div[data-baseweb="input"] input::placeholder {
+    color: #8E8E93 !important;
+}
+span[data-testid="stWidgetInstructions"] {
+    color: #A29BFE !important;
+}
+
+/* Ícone do Olho (Senha) */
+button[aria-label="Show password"], 
+button[aria-label="Hide password"],
+div[data-baseweb="input"] button {
+    background-color: transparent !important;
+    color: #A29BFE !important;
+}
 </style>
 """

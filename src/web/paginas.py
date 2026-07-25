@@ -198,35 +198,6 @@ def tela_home(sistema):
 # 2. TELA ALUNOS (LOGIN & SESSÃO ÚNICA)
 # ==========================================================
 def tela_alunos(sistema):
-    # CSS Customizado para forçar os campos do formulário em tons Roxos (remove borda vermelha/coral)
-    st.markdown(
-        """
-        <style>
-        /* Estilização dos inputs ao focar e pairar */
-        div[data-baseweb="input"] > div {
-            border-color: #6C5CE7 !important;
-        }
-        div[data-baseweb="input"] > div:focus-within {
-            border-color: #A29BFE !important;
-            box-shadow: 0 0 0 1px #A29BFE !important;
-        }
-        input:focus {
-            border-color: #A29BFE !important;
-            box-shadow: none !important;
-        }
-        /* Estilização da área de upload de arquivos */
-        div[data-testid="stFileUploader"] section {
-            border-color: #6C5CE7 !important;
-            background-color: rgba(108, 92, 231, 0.05) !important;
-        }
-        div[data-testid="stFileUploader"] section:hover {
-            border-color: #A29BFE !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
     st.markdown("<h1>Meu Perfil & Sessão</h1>", unsafe_allow_html=True)
 
     # Recupera o aluno logado na sessão ativa
