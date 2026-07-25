@@ -26,12 +26,13 @@ def sistema_para_dict(sistema):
         "eventos": []
     }
 
-    # A) Converte Alunos (com suas Rotinas e Foto de Perfil)
+    # A) Converte Alunos (com Senha, Rotinas e Foto de Perfil)
     for aluno in sistema.alunos_por_matricula.values():
         aluno_data = {
             "nome": aluno.nome,
             "email": aluno.email,
-            "matricula": aluno.matricula,
+            "matricula": str(aluno.matricula).strip(),
+            "senha": getattr(aluno, "senha", ""),  # <-- Salva a senha do aluno
             "foto_b64": getattr(aluno, "foto_b64", ""),
             "rotinas": [
                 {"atividade": r.atividade, "tempo": r.tempo}
@@ -65,13 +66,17 @@ def sistema_para_dict(sistema):
         if isinstance(curtidores_list, set):
             curtidores_list = list(curtidores_list)
 
+        autor_mat = None
+        if getattr(post, "autor", None):
+            autor_mat = str(post.autor.matricula).strip()
+
         post_data = {
             "tipo": post.__class__.__name__,
             "titulo": post.titulo,
             "conteudo": post.conteudo,
-            "autor_matricula": post.autor.matricula.strip() if getattr(post, "autor", None) else None,
+            "autor_matricula": autor_mat,
             "curtidas": getattr(post, "curtidas", len(curtidores_list)),
-            "curtidores": curtidores_list,  # CRUCIAL: Salva as matrículas de quem curtiu
+            "curtidores": curtidores_list,
             "comentarios": getattr(post, "comentarios", []),
             "foto_post_b64": getattr(post, "foto_post_b64", "")
         }
@@ -133,10 +138,16 @@ def dict_para_sistema(dados_dict, sistema):
         except Exception as e:
             print(f"Erro ao carregar disciplina '{d.get('nome')}': {e}")
 
-    # B) Recria Alunos (com Foto) e suas Rotinas
+    # B) Recria Alunos (com Senha e Foto) e suas Rotinas
     for a in dados_dict.get("alunos", []):
         try:
-            novo_aluno = Aluno(a["nome"], a["email"], a["matricula"])
+            mat_str = str(a["matricula"]).strip()
+            novo_aluno = Aluno(a["nome"], a["email"], mat_str)
+            
+            # Restaura a senha do aluno
+            if "senha" in a:
+                setattr(novo_aluno, "senha", a["senha"])
+
             if a.get("foto_b64"):
                 setattr(novo_aluno, "foto_b64", a["foto_b64"])
 
@@ -150,7 +161,8 @@ def dict_para_sistema(dados_dict, sistema):
     # C) Recria Postagens (com Curtidores e Comentários)
     for p in dados_dict.get("postagens", []):
         try:
-            autor_obj = sistema.alunos_por_matricula.get(p.get("autor_matricula"))
+            autor_mat = str(p.get("autor_matricula", "")).strip()
+            autor_obj = sistema.alunos_por_matricula.get(autor_mat)
             tipo_post = p.get("tipo")
 
             if tipo_post == "PostagemDuvida":
