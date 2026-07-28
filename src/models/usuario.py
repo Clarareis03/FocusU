@@ -89,17 +89,11 @@ class Aluno(UsuarioBase):
 
         return tempo_valido + self.calcular_tempo_estudo_recursivo(indice + 1)
 
-    def obter_tarefas_pendentes(self, sistema) -> list:
+    def obter_tarefas_pendentes(self) -> list:
         tarefas_pendentes = []
         
-        # Recupera as disciplinas do sistema de forma segura
-        if hasattr(sistema, "disciplinas_por_nome"):
-            disciplinas = list(sistema.disciplinas_por_nome.values())
-        elif hasattr(sistema, "disciplinas"):
-            disc_attr = getattr(sistema, "disciplinas")
-            disciplinas = list(disc_attr.values()) if isinstance(disc_attr, dict) else disc_attr
-        else:
-            disciplinas = []
+        # Recupera as disciplinas do próprio aluno (removida a busca global)
+        disciplinas = self.disciplinas
 
         for disciplina in disciplinas:
             if hasattr(disciplina, "listar_tarefas") and callable(getattr(disciplina, "listar_tarefas")):
@@ -138,22 +132,9 @@ class Aluno(UsuarioBase):
                     })
         return tarefas_pendentes
 
-    def calcular_progresso_estudos(self, sistema):
-        # 1. Recupera as disciplinas de forma segura
-        if hasattr(sistema, "disciplinas_por_nome"):
-            disciplinas = list(sistema.disciplinas_por_nome.values())
-        elif hasattr(sistema, "disciplinas"):
-            disc_attr = getattr(sistema, "disciplinas")
-            if isinstance(disc_attr, dict):
-                disciplinas = list(disc_attr.values())
-            elif isinstance(disc_attr, list):
-                disciplinas = disc_attr
-            else:
-                disciplinas = []
-        elif hasattr(sistema, "listar_disciplinas") and callable(getattr(sistema, "listar_disciplinas")):
-            disciplinas = sistema.listar_disciplinas()
-        else:
-            disciplinas = []
+    def calcular_progresso_estudos(self):
+        # 1. Recupera as disciplinas do próprio aluno (removida a busca global)
+        disciplinas = self.disciplinas
 
         if not disciplinas:
             return 0.0
@@ -161,7 +142,7 @@ class Aluno(UsuarioBase):
         total_tarefas = 0
         tarefas_concluidas = 0
 
-        # 2. Percorre as disciplinas calculando o progresso
+        # 2. Percorre as disciplinas do aluno calculando o progresso
         for d in disciplinas:
             if hasattr(d, "listar_tarefas") and callable(getattr(d, "listar_tarefas")):
                 tarefas = d.listar_tarefas()

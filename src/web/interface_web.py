@@ -48,7 +48,7 @@ if "sistema" not in st.session_state:
 
 # Inicializa a página padrão no session state
 if "pagina" not in st.session_state:
-    st.session_state.pagina = "Home"
+    st.session_state.pagina = "Alunos"
 
 # Define as variáveis utilizadas pelo restante da interface
 sistema = st.session_state.sistema
