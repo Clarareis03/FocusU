@@ -1,9 +1,7 @@
-
 import base64
 import uuid
 from datetime import datetime, date
 from pathlib import Path
-
 
 import pandas as pd
 import plotly.express as px
@@ -15,7 +13,6 @@ from models.postagem import Postagem, PostagemDuvida, PostagemMaterial
 from models.usuario import Aluno
 from models.evento import Evento
 from utils.helpers import uploaded_file_to_base64
-from css import carregar_css  # Importa a função do arquivo css.py
 from utils.persistencia import salvar_sistema_json
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -194,6 +191,8 @@ def tela_home(sistema):
     O **FocusU** é uma plataforma desenvolvida para auxiliar estudantes universitários na organização da vida acadêmica.
     O sistema reúne gerenciamento de disciplinas, rotinas, compartilhamento de materiais e interação entre alunos em um único ambiente.
     """)
+
+
 # ==========================================================
 # 2. TELA ALUNOS (LOGIN & SESSÃO ÚNICA)
 # ==========================================================
@@ -412,102 +411,142 @@ def tela_alunos(sistema):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Erro ao cadastrar: {str(e)}")
+
+
 # ==========================================================
 # 3. TELA DISCIPLINAS
 # ==========================================================
 def tela_disciplinas(sistema):
     st.markdown("<h1>Gerenciamento de Disciplinas</h1>", unsafe_allow_html=True)
-    st.write(
-        "Cadastre novas disciplinas e visualize as matérias disponíveis na instituição."
-    )
+    st.write("Cadastre novas disciplinas no sistema e matricule-se para criar sua grade.")
 
-    col_form, col_lista = st.columns([0.4, 0.6], gap="large")
+    aluno_logado = st.session_state.get("aluno_logado", None)
+    lista_disc_global = list(sistema.disciplinas_por_nome.values())
 
-    with col_form:
-        st.subheader("➕ Cadastrar Disciplina")
+    tab_matricular, tab_criar, tab_listar = st.tabs(["📌 Me Matricular", "➕ Cadastrar Nova", "📖 Ver Todas"])
 
+    # --- ABA MATRICULAR ---
+    with tab_matricular:
+        if not aluno_logado:
+            st.warning("⚠️ Você precisa fazer login na aba 'Alunos' para se matricular em uma disciplina.")
+        else:
+            st.subheader("Vincular disciplina ao meu perfil")
+            if not lista_disc_global:
+                st.info("Não há disciplinas no sistema. Cadastre uma na aba ao lado.")
+            else:
+                nomes_disciplinas = [d.nome for d in lista_disc_global]
+                disc_escolhida = st.selectbox("Escolha uma disciplina disponível:", nomes_disciplinas)
+                
+                if st.button("Confirmar Matrícula", type="primary"):
+                    # Busca a disciplina diretamente na lista
+                    disciplina_obj = next(d for d in lista_disc_global if d.nome == disc_escolhida)
+                    
+                    # Verifica se o aluno já tem essa disciplina para evitar duplicatas
+                    já_matriculado = any(d.nome == disc_escolhida for d in aluno_logado.disciplinas)
+                    
+                    if já_matriculado:
+                        st.warning("Você já está matriculado nesta disciplina!")
+                    else:
+                        # 1. Adiciona a disciplina no perfil do aluno
+                        aluno_logado.adicionar_disciplina(disciplina_obj)
+                        
+                        # 2. Salva a matrícula do aluno dentro da disciplina (cadeira)
+                        if not hasattr(disciplina_obj, "alunos_matriculados"):
+                            disciplina_obj.alunos_matriculados = []
+                            
+                        if aluno_logado.matricula not in disciplina_obj.alunos_matriculados:
+                            disciplina_obj.alunos_matriculados.append(aluno_logado.matricula)
+                            
+                        salvar_sistema_json(sistema)
+                        st.success(f"✅ Matrícula em **{disc_escolhida}** realizada com sucesso!")
+                        st.rerun()
+
+            st.divider()
+            
+            # --- NOVA SEÇÃO: GERENCIAR MATRÍCULAS ATIVAS ---
+            st.subheader("Minhas Matrículas Ativas")
+            
+            if not getattr(aluno_logado, "disciplinas", []):
+                st.info("Você ainda não está matriculado em nenhuma disciplina.")
+            else:
+                for disc in aluno_logado.disciplinas:
+                    col_nome, col_btn = st.columns([0.75, 0.25])
+                    with col_nome:
+                        st.markdown(f"📖 **{disc.nome}**")
+                    with col_btn:
+                        # O botão precisa de uma chave única (key) baseada no nome da disciplina
+                        if st.button("Encerrar Matrícula", key=f"desmatricular_{disc.nome}"):
+                            
+                            # 1. Remove a disciplina da lista do aluno
+                            aluno_logado.disciplinas = [d for d in aluno_logado.disciplinas if d.nome != disc.nome]
+                            
+                            # 2. Remove a matrícula do aluno da cadeira global
+                            disc_global = next((d for d in lista_disc_global if d.nome == disc.nome), None)
+                            if disc_global and hasattr(disc_global, "alunos_matriculados"):
+                                if aluno_logado.matricula in disc_global.alunos_matriculados:
+                                    disc_global.alunos_matriculados.remove(aluno_logado.matricula)
+                            
+                            # 3. Salva as alterações no JSON e recarrega a página
+                            salvar_sistema_json(sistema)
+                            st.rerun()
+                    
+                    st.markdown("<hr style='margin: 0.5em 0px; border-color: #333;'>", unsafe_allow_html=True)
+
+    # --- ABA CRIAR ---
+    with tab_criar:
+        st.subheader("Cadastrar Disciplina no Sistema")
         with st.form("cadastro_disciplina", clear_on_submit=True):
-            nome = st.text_input(
-                "Nome da Disciplina",
-                placeholder="Ex: Programação Orientada a Objetos",
-            )
-            professor = st.text_input(
-                "Professor Responsável", placeholder="Ex: Dr. Alan Turing"
-            )
-
-            cadastrar = st.form_submit_button(
-                "Cadastrar Disciplina", use_container_width=True, type="primary"
-            )
+            nome = st.text_input("Nome da Disciplina", placeholder="Ex: Programação Orientada a Objetos")
+            professor = st.text_input("Professor Responsável", placeholder="Ex: Dr. Alan Turing")
+            cadastrar = st.form_submit_button("Cadastrar Disciplina", use_container_width=True, type="primary")
 
         if cadastrar:
             if not nome.strip() or not professor.strip():
                 st.warning("⚠️ Preencha o nome da disciplina e o professor.")
             else:
                 try:
-                    disciplina = Disciplina(
-                        nome=nome.strip(), professor=professor.strip()
-                    )
+                    disciplina = Disciplina(nome=nome.strip(), professor=professor.strip())
                     sistema.adicionar_disciplina_global(disciplina)
-
-                    # 🟢 SALVA NO BANCO DE DADOS (JSON)
                     salvar_sistema_json(sistema)
-
-                    st.success(
-                        f"✅ Disciplina **{nome}** cadastrada com sucesso!"
-                    )
+                    st.success(f"✅ Disciplina **{nome}** cadastrada no sistema!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"❌ {str(e)}")
-    with col_lista:
-        lista_disc = list(sistema.disciplinas_por_nome.values())
-        total_disciplinas = len(lista_disc)
 
-        st.subheader(f"📖 Disciplinas Cadastradas ({total_disciplinas})")
-
-        if total_disciplinas > 0:
-            termo_busca = st.text_input(
-                "🔍 Buscar disciplina",
-                placeholder="Digite o nome da disciplina ou do professor...",
-                label_visibility="collapsed",
-            )
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            disciplinas_filtradas = [
-                d
-                for d in lista_disc
-                if (
-                    termo_busca.lower() in d.nome.lower()
-                    or termo_busca.lower() in d.professor.lower()
-                )
-            ]
-
-            if not disciplinas_filtradas:
-                st.info("Nenhuma disciplina encontrada para essa busca.")
-            else:
-                for disc in disciplinas_filtradas:
-                    with st.container(border=True):
-                        st.markdown(
-                            f"<h4 style='margin:0; color:white;'>{disc.nome}</h4>",
-                            unsafe_allow_html=True,
-                        )
-                        st.caption(
-                            f"👨‍🏫 **Professor Responsável:** {disc.professor}"
-                        )
-
+    # --- ABA LISTAR ---
+    with tab_listar:
+        st.subheader(f"Disciplinas Cadastradas ({len(lista_disc_global)})")
+        if lista_disc_global:
+            for disc in lista_disc_global:
+                with st.container(border=True):
+                    st.markdown(f"<h4 style='margin:0; color:white;'>{disc.nome}</h4>", unsafe_allow_html=True)
+                    
+                    # Conta quantos alunos estão matriculados nesta cadeira
+                    qtd_alunos = len(getattr(disc, "alunos_matriculados", []))
+                    
+                    st.caption(f"👨‍🏫 **Professor Responsável:** {disc.professor}  |  👥 **Alunos Matriculados:** {qtd_alunos}")
         else:
             st.info("Nenhuma disciplina cadastrada no momento.")
+
+
 # ==========================================================
-# 4. TELA AGENDA (Atualizada com OO e Fallback Seguro)
+# 4. TELA AGENDA (Isolada por aluno)
 # ==========================================================
 def tela_agenda(sistema):
-    st.markdown("<h1>📅 Agenda de Tarefas</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>📅 Minha Agenda Privada</h1>", unsafe_allow_html=True)
+    
+    aluno_logado = st.session_state.get("aluno_logado", None)
+    if not aluno_logado:
+        st.warning("⚠️ Você precisa fazer login na aba 'Alunos' para acessar suas tarefas.")
+        return
+
     st.write("Acompanhe suas provas, entregas e trabalhos organizados por disciplina.")
 
-    dict_disciplinas = sistema.disciplinas_por_nome
+    # SEGURANÇA: Carrega APENAS as disciplinas do aluno logado
+    dict_disciplinas = {d.nome: d for d in getattr(aluno_logado, "disciplinas", [])}
 
     if not dict_disciplinas:
-        st.warning("⚠️ Cadastre pelo menos uma disciplina na aba 'Disciplinas' para utilizar a agenda.")
+        st.warning("⚠️ Você ainda não está matriculado em nenhuma disciplina. Vá na aba 'Disciplinas' para se matricular.")
         return
 
     col_filtro, _ = st.columns([0.4, 0.6])
@@ -552,17 +591,34 @@ def tela_agenda(sistema):
                             tipo=tipo,
                             descricao=descricao.strip()
                         )
+                        
+                        # --- INÍCIO DA CORREÇÃO: Vincula a tarefa ao aluno logado ---
+                        if tarefa_criada:
+                            if isinstance(tarefa_criada, dict):
+                                tarefa_criada["dono"] = aluno_logado.matricula
+                            else:
+                                tarefa_criada.dono = aluno_logado.matricula
+                        else:
+                            # Fallback caso a função não retorne o objeto diretamente
+                            try:
+                                if hasattr(disciplina_obj, "listar_tarefas"):
+                                    todas_t = disciplina_obj.listar_tarefas()
+                                    if todas_t:
+                                        if isinstance(todas_t[-1], dict):
+                                            todas_t[-1]["dono"] = aluno_logado.matricula
+                                        else:
+                                            todas_t[-1].dono = aluno_logado.matricula
+                            except Exception:
+                                pass
+                        # --- FIM DA CORREÇÃO ---
+                        
+                        salvar_sistema_json(sistema)
+                        st.success(f"✅ Tarefa adicionada à disciplina **{nome_disc_selecionada}**!")
+                        st.rerun()
                     else:
                         st.error("Erro no objeto da disciplina. Recarregue a página ou cadastre novamente.")
-                        return
 
-                    # SALVA NO BANCO DE DADOS (JSON)
-                    salvar_sistema_json(sistema)
-
-                    st.success(f"✅ Tarefa **'{getattr(tarefa_criada, 'titulo', titulo)}'** adicionada à disciplina **{nome_disc_selecionada}**!")
-                    st.rerun()
-
-    st.markdown("### 📚 Tarefas por Disciplina")
+    st.markdown("### 📚 Minhas Tarefas por Disciplina")
 
     icones_tipo = {
         "Prova": "📝",
@@ -578,23 +634,30 @@ def tela_agenda(sistema):
         status_param = "concluidas"
 
     for nome_disc, disciplina_obj in dict_disciplinas.items():
-        # --- BUSCA SEGURA DE TAREFAS ---
         if hasattr(disciplina_obj, "listar_tarefas") and callable(getattr(disciplina_obj, "listar_tarefas")):
             tarefas_brutas = disciplina_obj.listar_tarefas(status=status_param)
         elif isinstance(disciplina_obj, dict):
-            # Trata dados legados salvos como dict puro no JSON
             dict_t = disciplina_obj.get("_tarefas", {})
             tarefas_brutas = list(dict_t.values()) if isinstance(dict_t, dict) else dict_t
         else:
             tarefas_brutas = []
 
-        # FILTRAGEM DE SEGURANÇA NA INTERFACE:
+        # --- INÍCIO DA CORREÇÃO: Filtra apenas as tarefas deste usuário ---
+        tarefas_do_aluno = []
+        for t in tarefas_brutas:
+            dono = getattr(t, "dono", t.get("dono") if isinstance(t, dict) else None)
+            
+            # Mostra se for do aluno logado OU se não tiver dono (tarefas criadas antes desta correção)
+            if dono == aluno_logado.matricula or dono is None:
+                tarefas_do_aluno.append(t)
+        # --- FIM DA CORREÇÃO ---
+
         if filtro_status == "Pendentes":
-            tarefas = [t for t in tarefas_brutas if not getattr(t, "concluida", False)]
+            tarefas = [t for t in tarefas_do_aluno if not getattr(t, "concluida", False)]
         elif filtro_status == "Concluídas":
-            tarefas = [t for t in tarefas_brutas if getattr(t, "concluida", False)]
+            tarefas = [t for t in tarefas_do_aluno if getattr(t, "concluida", False)]
         else:
-            tarefas = tarefas_brutas
+            tarefas = tarefas_do_aluno
 
         with st.expander(f"📖 **{nome_disc}** ({len(tarefas)} tarefas)", expanded=True):
             if not tarefas:
@@ -604,7 +667,6 @@ def tela_agenda(sistema):
             for tarefa in tarefas:
                 col_check, col_info = st.columns([0.08, 0.92])
 
-                # Recupera propriedades de forma segura para objetos ou dicts
                 t_id = getattr(tarefa, "id", tarefa.get("id") if isinstance(tarefa, dict) else None)
                 t_tipo = getattr(tarefa, "tipo", tarefa.get("tipo", "Geral") if isinstance(tarefa, dict) else "Geral")
                 t_titulo = getattr(tarefa, "titulo", tarefa.get("titulo", "") if isinstance(tarefa, dict) else "")
@@ -634,9 +696,7 @@ def tela_agenda(sistema):
                             else:
                                 tarefa.concluida = False
 
-                        # SALVA NO BANCO DE DADOS (JSON)
                         salvar_sistema_json(sistema)
-
                         st.rerun()
 
                 with col_info:
@@ -655,6 +715,8 @@ def tela_agenda(sistema):
                         st.warning("⚠️ Esta tarefa está em atraso!")
 
                 st.divider()
+
+
 # ==========================================================
 # 5. TELA FEED (INTEGRADA COM ALUNO LOGADO)
 # ==========================================================
@@ -982,6 +1044,8 @@ def tela_feed(sistema):
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Erro ao criar evento: {str(e)}")
+
+
 # ==========================================================
 # 6. TELA DE ESTATÍSTICAS E DASHBOARD
 # ==========================================================
@@ -1099,78 +1163,3 @@ def tela_estatisticas(sistema):
                 "Nenhuma publicação recebeu curtidas ainda. Seja o primeiro a"
                 " interagir no Feed!"
             )
-
-# ==========================================================
-# ESTRUTURA PRINCIPAL E NAVEGAÇÃO
-# ==========================================================
-def main(sistema):
-    carregar_css()
-
-    if "pagina" not in st.session_state:
-        st.session_state.pagina = "Home"
-
-    with st.sidebar:
-        if LOGO.exists():
-            st.image(str(LOGO), width=110)
-
-        st.markdown(
-            """
-        <div style="margin-top:-5px; margin-bottom:20px;">
-            <h3 style="margin:0; color:white; font-size:1.1rem; font-weight:700;">FocusU</h3>
-            <p style="margin:0; color:#71717A; font-size:0.8rem;">Plataforma Acadêmica</p>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
-
-        botoes = [
-            ("Home", "home"),
-            ("Alunos", "user"),
-            ("Disciplinas", "livro"),
-            ("Agenda", "rotina"),
-            ("Feed", "chat"),
-            ("Estatísticas", "dashboard"),
-        ]
-
-        for nome, chave_icone in botoes:
-            eh_ativa = st.session_state.pagina == nome
-            tipo_botao = "primary" if eh_ativa else "secondary"
-
-            img_icon = ICONS.get(chave_icone, "")
-
-            col_icon, col_btn = st.columns([0.2, 0.8])
-
-            with col_icon:
-                if img_icon:
-                    st.markdown(
-                        f'<img src="{img_icon}" width="22" style="margin-top: 8px;">',
-                        unsafe_allow_html=True
-                    )
-
-            with col_btn:
-                if st.button(
-                    nome,
-                    key=f"nav_btn_{nome}",
-                    use_container_width=True,
-                    type=tipo_botao,
-                ):
-                    st.session_state.pagina = nome
-                    st.rerun()
-
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.caption("Versão 1.0")
-
-    opcao = st.session_state.pagina
-
-    if opcao == "Home":
-        tela_home(sistema)
-    elif opcao == "Alunos":
-        tela_alunos(sistema)
-    elif opcao == "Disciplinas":
-        tela_disciplinas(sistema)
-    elif opcao == "Agenda":
-        tela_agenda(sistema)
-    elif opcao == "Feed":
-        tela_feed(sistema)
-    elif opcao == "Estatísticas":
-        tela_estatisticas(sistema)
