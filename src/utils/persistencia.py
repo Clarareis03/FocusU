@@ -26,14 +26,15 @@ def sistema_para_dict(sistema):
         "eventos": []
     }
 
-    # A) Converte Alunos (com Senha, Rotinas e Foto de Perfil)
+    # A) Converte Alunos (com Senha, Disciplinas, Rotinas e Foto)
     for aluno in sistema.alunos_por_matricula.values():
         aluno_data = {
             "nome": aluno.nome,
             "email": aluno.email,
             "matricula": str(aluno.matricula).strip(),
-            "senha": getattr(aluno, "senha", ""),  # <-- Salva a senha do aluno
+            "senha": getattr(aluno, "senha", ""),
             "foto_b64": getattr(aluno, "foto_b64", ""),
+            "disciplinas": [d.nome for d in getattr(aluno, "disciplinas", [])],
             "rotinas": [
                 {"atividade": r.atividade, "tempo": r.tempo}
                 for r in getattr(aluno, 'rotinas', [])
@@ -41,18 +42,20 @@ def sistema_para_dict(sistema):
         }
         dados["alunos"].append(aluno_data)
 
-    # B) Converte Disciplinas (com suas Tarefas)
+    # B) Converte Disciplinas (com Tarefas e Alunos Matriculados)
     for disc in sistema.disciplinas_por_nome.values():
         disc_data = {
             "nome": disc.nome,
             "professor": disc.professor,
+            "alunos_matriculados": getattr(disc, "alunos_matriculados", []),
             "tarefas": [
                 {
                     "titulo": t.titulo,
                     "data_entrega": t.data_entrega.strftime("%Y-%m-%d") if isinstance(t.data_entrega, (datetime, date)) else str(t.data_entrega),
                     "tipo": t.tipo,
                     "descricao": getattr(t, 'descricao', ''),
-                    "concluida": t.concluida
+                    "concluida": getattr(t, 'concluida', False),
+                    "dono": getattr(t, 'dono', None)
                 }
                 for t in disc.listar_tarefas()
             ]
@@ -61,7 +64,6 @@ def sistema_para_dict(sistema):
 
     # C) Converte Postagens (Geral, Dúvida, Material + Foto + Curtidores)
     for post in sistema.postagens:
-        # Garante a extração segura do atributo 'curtidores'
         curtidores_list = getattr(post, "curtidores", [])
         if isinstance(curtidores_list, set):
             curtidores_list = list(curtidores_list)
@@ -110,14 +112,18 @@ def dict_para_sistema(dados_dict, sistema):
     if not dados_dict:
         return sistema
 
-    # Limpa listas anteriores para evitar duplicações de registros na memória
+    # Limpa dados anteriores na memória
+    sistema.alunos_por_matricula = {}
+    sistema.disciplinas_por_nome = {}
     sistema.postagens = []
     sistema.eventos = []
 
-    # A) Recria Disciplinas e Tarefas
+    # A) Recria Disciplinas
     for d in dados_dict.get("disciplinas", []):
         try:
             nova_disc = Disciplina(d["nome"], d["professor"])
+            nova_disc.alunos_matriculados = d.get("alunos_matriculados", [])
+
             for t in d.get("tarefas", []):
                 dt = t["data_entrega"]
                 try:
@@ -131,6 +137,9 @@ def dict_para_sistema(dados_dict, sistema):
                     tipo=t["tipo"],
                     descricao=t.get("descricao", "")
                 )
+                if t.get("dono"):
+                    tarefa_criada.dono = t.get("dono")
+
                 if t.get("concluida"):
                     nova_disc.concluir_tarefa(tarefa_criada.id)
 
@@ -138,13 +147,12 @@ def dict_para_sistema(dados_dict, sistema):
         except Exception as e:
             print(f"Erro ao carregar disciplina '{d.get('nome')}': {e}")
 
-    # B) Recria Alunos (com Senha e Foto) e suas Rotinas
+    # B) Recria Alunos e vincula Disciplinas
     for a in dados_dict.get("alunos", []):
         try:
             mat_str = str(a["matricula"]).strip()
             novo_aluno = Aluno(a["nome"], a["email"], mat_str)
             
-            # Restaura a senha do aluno
             if "senha" in a:
                 setattr(novo_aluno, "senha", a["senha"])
 
@@ -154,11 +162,29 @@ def dict_para_sistema(dados_dict, sistema):
             for r in a.get("rotinas", []):
                 novo_aluno.adicionar_rotina(Rotina(r["atividade"], r["tempo"]))
 
+            # Associação bidirecional segura entre Disciplina e Aluno.
+            # Casa os dois lados (lista do aluno E lista da disciplina) para
+            # se recuperar mesmo se só um dos lados tiver sido salvo corretamente.
+            disciplinas_aluno_nomes = set(a.get("disciplinas", []))
+            for disc_nome, disc_obj in sistema.disciplinas_por_nome.items():
+                # Garante que o atributo exista no próprio objeto (evita criar
+                # uma lista solta em memória via fallback do getattr)
+                if not hasattr(disc_obj, "alunos_matriculados") or getattr(disc_obj, "alunos_matriculados") is None:
+                    setattr(disc_obj, "alunos_matriculados", [])
+
+                alunos_mat = disc_obj.alunos_matriculados
+
+                if disc_nome in disciplinas_aluno_nomes or mat_str in alunos_mat:
+                    if disc_obj not in novo_aluno.disciplinas:
+                        novo_aluno.adicionar_disciplina(disc_obj)
+                    if mat_str not in alunos_mat:
+                        alunos_mat.append(mat_str)
+
             sistema.adicionar_aluno(novo_aluno)
         except Exception as e:
             print(f"Erro ao carregar aluno '{a.get('nome')}': {e}")
 
-    # C) Recria Postagens (com Curtidores e Comentários)
+    # C) Recria Postagens
     for p in dados_dict.get("postagens", []):
         try:
             autor_mat = str(p.get("autor_matricula", "")).strip()
@@ -173,7 +199,6 @@ def dict_para_sistema(dados_dict, sistema):
             else:
                 nova_post = Postagem(p["titulo"], p["conteudo"], autor_obj)
 
-            # Restaura curtidas e a lista dos alunos que curtiram
             nova_post.curtidores = p.get("curtidores", [])
             nova_post.curtidas = len(nova_post.curtidores) if nova_post.curtidores else p.get("curtidas", 0)
             nova_post.comentarios = p.get("comentarios", [])
