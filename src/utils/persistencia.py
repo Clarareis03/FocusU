@@ -162,11 +162,23 @@ def dict_para_sistema(dados_dict, sistema):
             for r in a.get("rotinas", []):
                 novo_aluno.adicionar_rotina(Rotina(r["atividade"], r["tempo"]))
 
-            # Restaura disciplinas vinculadas ao aluno
-            for disc_nome in a.get("disciplinas", []):
-                disc_obj = sistema.disciplinas_por_nome.get(disc_nome)
-                if disc_obj:
-                    novo_aluno.adicionar_disciplina(disc_obj)
+            # Associação bidirecional segura entre Disciplina e Aluno.
+            # Casa os dois lados (lista do aluno E lista da disciplina) para
+            # se recuperar mesmo se só um dos lados tiver sido salvo corretamente.
+            disciplinas_aluno_nomes = set(a.get("disciplinas", []))
+            for disc_nome, disc_obj in sistema.disciplinas_por_nome.items():
+                # Garante que o atributo exista no próprio objeto (evita criar
+                # uma lista solta em memória via fallback do getattr)
+                if not hasattr(disc_obj, "alunos_matriculados") or getattr(disc_obj, "alunos_matriculados") is None:
+                    setattr(disc_obj, "alunos_matriculados", [])
+
+                alunos_mat = disc_obj.alunos_matriculados
+
+                if disc_nome in disciplinas_aluno_nomes or mat_str in alunos_mat:
+                    if disc_obj not in novo_aluno.disciplinas:
+                        novo_aluno.adicionar_disciplina(disc_obj)
+                    if mat_str not in alunos_mat:
+                        alunos_mat.append(mat_str)
 
             sistema.adicionar_aluno(novo_aluno)
         except Exception as e:

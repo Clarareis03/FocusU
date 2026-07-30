@@ -126,8 +126,16 @@ while True:
                 if idx_d < 0 or idx_d >= len(lista_disciplinas):
                     raise IndexError("Índice de disciplina fora da lista.")
 
-                # Associa a disciplina APENAS ao aluno logado
-                aluno_logado.adicionar_disciplina(lista_disciplinas[idx_d])
+                # Associa a disciplina ao aluno logado (vínculo bidirecional,
+                # espelhando o que a interface Streamlit já fazia)
+                disciplina_escolhida = lista_disciplinas[idx_d]
+                aluno_logado.adicionar_disciplina(disciplina_escolhida)
+
+                if not hasattr(disciplina_escolhida, "alunos_matriculados") or disciplina_escolhida.alunos_matriculados is None:
+                    disciplina_escolhida.alunos_matriculados = []
+                if str(aluno_logado.matricula) not in disciplina_escolhida.alunos_matriculados:
+                    disciplina_escolhida.alunos_matriculados.append(str(aluno_logado.matricula))
+
                 print("\nMatrícula na disciplina efetuada com sucesso!")
 
             elif opcao == "3":
