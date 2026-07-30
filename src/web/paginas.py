@@ -265,8 +265,8 @@ def tela_alunos(sistema):
                 mins = minutos_estudo % 60
                 st.markdown(f"⏱️ **Tempo Total Dedicado:** `{horas}h {mins}min`")
 
-        # Progresso + Tarefas Pendentes
-        col_prog, col_pend = st.columns(2)
+        # Progresso + Tarefas Pendentes + Tarefas Atrasadas
+        col_prog, col_pend, col_atrasadas = st.columns(3)
 
         with col_prog:
             st.markdown("##### 📊 Progresso Acadêmico")
@@ -303,6 +303,25 @@ def tela_alunos(sistema):
                         st.warning(f"**{titulo}** ({disciplina}) — Entrega: `{data}`")
             else:
                 st.success("Nenhuma tarefa pendente no momento! 🎉")
+
+        with col_atrasadas:
+            st.markdown("##### ⚠️ Tarefas Atrasadas")
+            tarefas_atrasadas = []
+            try:
+                if hasattr(aluno_logado, "obter_tarefas_atrasadas"):
+                    tarefas_atrasadas = aluno_logado.obter_tarefas_atrasadas(sistema)
+            except Exception:
+                tarefas_atrasadas = []
+
+            if tarefas_atrasadas and isinstance(tarefas_atrasadas, list):
+                for t in tarefas_atrasadas[:2]:
+                    if isinstance(t, dict):
+                        titulo = t.get('titulo', 'Sem título')
+                        disciplina = t.get('disciplina', 'Geral')
+                        data = t.get('data_entrega', 'Sem data')
+                        st.error(f"🚨 **{titulo}** ({disciplina}) — Venceu em: `{data}`")
+            else:
+                st.success("Tudo em dia! Nenhuma tarefa atrasada. 👏")
 
         st.divider()
 

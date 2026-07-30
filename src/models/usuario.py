@@ -89,13 +89,20 @@ class Aluno(UsuarioBase):
 
         return tempo_valido + self.calcular_tempo_estudo_recursivo(indice + 1)
 
-    def obter_tarefas_pendentes(self) -> list:
-        tarefas_pendentes = []
-        
-        # Recupera as disciplinas do próprio aluno (removida a busca global)
-        disciplinas = self.disciplinas
+    # --- HELPER PRIVADO (DRY) -------------------------------------------
+    def _obter_todas_tarefas_normalizadas(self) -> list:
+        """Extrai, filtra por dono e normaliza todas as tarefas das disciplinas
+        matriculadas em dicionários padronizados com datas já validadas.
 
-        for disciplina in disciplinas:
+        Fonte única de verdade consumida por obter_tarefas_pendentes,
+        obter_tarefas_atrasadas e calcular_progresso_estudos, evitando que
+        os três métodos divirjam entre si (ex.: "tarefas fantasmas").
+        """
+        from datetime import date, datetime
+
+        tarefas_normalizadas = []
+
+        for disciplina in getattr(self, "disciplinas", []):
             if hasattr(disciplina, "listar_tarefas") and callable(getattr(disciplina, "listar_tarefas")):
                 tarefas = disciplina.listar_tarefas()
             else:
@@ -103,80 +110,104 @@ class Aluno(UsuarioBase):
                 if isinstance(tarefas, dict):
                     tarefas = list(tarefas.values())
 
+            nome_disc = getattr(disciplina, "nome", "Disciplina") if not isinstance(disciplina, dict) else disciplina.get("nome", "Disciplina")
+
             for tarefa in tarefas:
                 if not tarefa:
                     continue
 
-                concluida = False
-                titulo = "Sem título"
-                data = "Sem data"
+                # Tarefas representadas apenas por string (legado) não têm dono/data
+                if isinstance(tarefa, str):
+                    tarefas_normalizadas.append({
+                        "disciplina": nome_disc,
+                        "titulo": tarefa,
+                        "concluida": False,
+                        "data_obj": None,
+                        "data_fmt": "Sem data",
+                    })
+                    continue
+
+                # Filtra tarefas que pertencem exclusivamente a outro aluno
+                dono = getattr(tarefa, "dono", tarefa.get("dono") if isinstance(tarefa, dict) else None)
+                if dono and str(dono).strip() != str(self.matricula).strip():
+                    continue
 
                 if isinstance(tarefa, dict):
                     concluida = bool(tarefa.get("concluida", False))
                     titulo = str(tarefa.get("titulo", "Sem título"))
-                    data = str(tarefa.get("data_entrega", "Sem data"))
-                elif isinstance(tarefa, str):
-                    titulo = tarefa
+                    data_entrega = tarefa.get("data_entrega")
                 else:
                     concluida = bool(getattr(tarefa, "concluida", False))
                     titulo = str(getattr(tarefa, "titulo", "Sem título"))
-                    data = str(getattr(tarefa, "data_entrega", "Sem data"))
+                    data_entrega = getattr(tarefa, "data_entrega", None)  # getattr simples (bug do double-getattr corrigido)
 
-                if not concluida:
-                    nome_disciplina = getattr(disciplina, "nome", "Disciplina") if not isinstance(disciplina, dict) else disciplina.get("nome", "Disciplina")
-                    
-                    tarefas_pendentes.append({
-                        "disciplina": nome_disciplina,
-                        "titulo": titulo,
-                        "data_entrega": data
-                    })
-        return tarefas_pendentes
+                # Parsing defensivo de data: aceita date/datetime ou string em 2 formatos
+                data_obj = None
+                if isinstance(data_entrega, str):
+                    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+                        try:
+                            data_obj = datetime.strptime(data_entrega, fmt).date()
+                            break
+                        except ValueError:
+                            continue
+                elif isinstance(data_entrega, (date, datetime)):
+                    data_obj = data_entrega if isinstance(data_entrega, date) else data_entrega.date()
 
-    def calcular_progresso_estudos(self):
-        # 1. Recupera as disciplinas do próprio aluno (removida a busca global)
-        disciplinas = self.disciplinas
+                tarefas_normalizadas.append({
+                    "disciplina": nome_disc,
+                    "titulo": titulo,
+                    "concluida": concluida,
+                    "data_obj": data_obj,
+                    "data_fmt": data_obj.strftime("%d/%m/%Y") if data_obj else str(data_entrega or "Sem data"),
+                })
 
-        if not disciplinas:
+        return tarefas_normalizadas
+
+    # --- MÉTODOS PÚBLICOS --------------------------------------------------
+    def obter_tarefas_pendentes(self, sistema=None) -> list:
+        """Retorna as tarefas não concluídas e dentro do prazo (ou sem data definida).
+
+        O parâmetro `sistema` é opcional e existe apenas para compatibilidade
+        com chamadas da interface Streamlit (`aluno.obter_tarefas_pendentes(sistema)`).
+        """
+        from datetime import date
+        hoje = date.today()
+
+        pendentes = []
+        for t in self._obter_todas_tarefas_normalizadas():
+            if t["concluida"]:
+                continue
+            if not t["data_obj"] or t["data_obj"] >= hoje:
+                pendentes.append({
+                    "disciplina": t["disciplina"],
+                    "titulo": t["titulo"],
+                    "data_entrega": t["data_fmt"],
+                })
+        return pendentes
+
+    def obter_tarefas_atrasadas(self, sistema=None) -> list:
+        """Retorna as tarefas não concluídas cuja data de entrega já passou."""
+        from datetime import date
+        hoje = date.today()
+
+        atrasadas = []
+        for t in self._obter_todas_tarefas_normalizadas():
+            if not t["concluida"] and t["data_obj"] and t["data_obj"] < hoje:
+                atrasadas.append({
+                    "disciplina": t["disciplina"],
+                    "titulo": t["titulo"],
+                    "data_entrega": t["data_fmt"],
+                })
+        return atrasadas
+
+    def calcular_progresso_estudos(self, sistema=None) -> float:
+        """Calcula o percentual de tarefas concluídas do aluno (0 a 100)."""
+        tarefas = self._obter_todas_tarefas_normalizadas()
+        if not tarefas:
             return 0.0
 
-        total_tarefas = 0
-        tarefas_concluidas = 0
-
-        # 2. Percorre as disciplinas do aluno calculando o progresso
-        for d in disciplinas:
-            if hasattr(d, "listar_tarefas") and callable(getattr(d, "listar_tarefas")):
-                tarefas = d.listar_tarefas()
-            elif hasattr(d, "_tarefas"):
-                t_attr = getattr(d, "_tarefas")
-                tarefas = list(t_attr.values()) if isinstance(t_attr, dict) else t_attr
-            elif isinstance(d, dict):
-                t_attr = d.get("_tarefas", d.get("tarefas", []))
-                tarefas = list(t_attr.values()) if isinstance(t_attr, dict) else t_attr
-            else:
-                tarefas = []
-
-            for t in tarefas:
-                if not t:
-                    continue
-                
-                total_tarefas += 1
-                
-                is_concluida = False
-                try:
-                    if isinstance(t, dict):
-                        is_concluida = bool(t.get("concluida", False))
-                    elif not isinstance(t, str):
-                        is_concluida = bool(getattr(t, "concluida", False))
-                except Exception:
-                    is_concluida = False
-
-                if is_concluida:
-                    tarefas_concluidas += 1
-
-        if total_tarefas == 0:
-            return 0.0
-
-        return round((tarefas_concluidas / total_tarefas) * 100, 1)
+        concluidas = sum(1 for t in tarefas if t["concluida"])
+        return round((concluidas / len(tarefas)) * 100, 1)
 
     def atualizar_perfil(self, novo_nome: str = None, novo_email: str = None, nova_foto_b64: str = None, nova_senha: str = None):
         """Atualiza as informações do perfil utilizando setters de POO."""
