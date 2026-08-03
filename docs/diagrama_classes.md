@@ -1,116 +1,127 @@
-# Diagrama de Classes UML - FocusU
+# 📐 Diagrama de Classes — FocusU
 
-Este diagrama representa a modelagem das classes, métodos, atributos e relacionamentos do sistema utilizando a sintaxe Mermaid.
+> Representação UML da arquitetura Orientada a Objetos do projeto FocusU, destacando herança, abstração (interfaces), encapsulamento e associações.
 
 ```mermaid
 classDiagram
-class Publicavel {
-  <<interface>>
-  +publicar()
-}
+    %% ---------------------------------------------------------
+    %% INTERFACES / ABSTRAÇÕES
+    %% ---------------------------------------------------------
+    class Publicavel {
+        <<interface>>
+        +exibir_detalhes()* String
+    }
 
-class UsuarioBase {
-  <<abstract>>
-  - _nome: str
-  - _email: str
-  + total_usuarios: int
-  + __init__(nome, email)
-  + __del__()
-  + nome()
-  + email()
-  + exibir_perfil() *abstract*
-}
+    %% ---------------------------------------------------------
+    %% MODELOS PRINCIPAIS
+    %% ---------------------------------------------------------
+    class Usuario {
+        <<abstract>>
+        #_nome: String
+        #_email: String
+        #_matricula: String
+        #_foto_b64: String
+        +nome: String
+        +email: String
+        +matricula: String
+        +foto_b64: String
+        +validar_email(email) Static
+    }
 
-class Aluno {
-  + matricula: str
-  + disciplinas: list
-  + rotinas: list
-  + adicionar_disciplina(disciplina)
-  + adicionar_rotina(rotina)
-  + exibir_perfil()
-  + __str__()
-}
+    class Aluno {
+        -_disciplinas_matriculadas: List~Disciplina~
+        -_rotina: Rotina
+        +adicionar_disciplina(disciplina)
+        +remover_disciplina(disciplina)
+    }
 
-class Postagem {
-  + titulo: str
-  + conteudo: str
-  + autor: Aluno
-  + curtidas: int
-  + comentarios: list
-  + total_postagens: int
-  + __init__(titulo, conteudo, autor)
-  + __del__()
-  + curtir()
-  + comentar(comentario)
-  + publicar()
-}
+    class Disciplina {
+        -_nome: String
+        -_codigo: String
+        -_professor: String
+        -_tarefas: List~Tarefa~
+        +adicionar_tarefa(tarefa)
+    }
 
-class PostagemDuvida {
-  + disciplina: str
-  + resolvida: bool
-  + publicar()
-}
+    class Tarefa {
+        -_titulo: String
+        -_data_entrega: String
+        -_concluida: bool
+        +marcar_concluida()
+    }
 
-class PostagemMaterial {
-  + link_download: str
-  + publicar()
-}
+    class Rotina {
+        -_horarios: List~String~
+        +adicionar_horario(horario)
+    }
 
-class Evento {
-  + titulo: str
-  + data: str
-  + horario: str
-  + total_eventos: int
-  + __init__(titulo, data, horario)
-  + __del__()
-  + publicar()
-}
+    %% ---------------------------------------------------------
+    %% POSTAGENS & EVENTOS (POLIMORFISMO & HERANÇA)
+    %% ---------------------------------------------------------
+    class Postagem {
+        #_titulo: String
+        #_conteudo: String
+        #_autor: Usuario
+        #_curtidas: int
+        #_curtidores: Set~String~
+        #_comentarios: List~String~
+        #_foto_post_b64: String
+        +curtir(user_id)
+        +comentar(texto)
+        +exibir_detalhes() String
+    }
 
-class Disciplina {
-  - _nome: str
-  + professor: str
-  + total_disciplinas: int
-  + __init__(nome, professor)
-  + __del__()
-  + nome()
-  + __str__()
-}
+    class PostagemDuvida {
+        -_disciplina: String
+        -_resolvida: bool
+        +marcar_resolvida()
+        +exibir_detalhes() String
+    }
 
-class Rotina {
-  - _atividade: str
-  - _tempo: int
-  + total_rotinas: int
-  + __init__(atividade, tempo)
-  + __del__()
-  + atividade()
-  + tempo()
-  + __str__()
-}
+    class PostagemMaterial {
+        -_link_download: String
+        +exibir_detalhes() String
+    }
 
-class SistemaFocusU {
-  + alunos: list
-  + disciplinas_globais: list
-  + postagens: list
-  + eventos: list
-  + adicionar_aluno(aluno)
-  + remover_aluno(aluno)
-  + adicionar_disciplina_global(d)
-  + adicionar_postagem(p)
-  + adicionar_evento(e)
-  + listar_alunos()
-  + exibir_feed()
-  + estatisticas()
-}
+    class Evento {
+        -_titulo: String
+        -_data: String
+        -_horario: String
+        +exibir_detalhes() String
+    }
 
-Aluno --|> UsuarioBase
-Postagem ..|> Publicavel
-Evento ..|> Publicavel
-PostagemDuvida --|> Postagem
-PostagemMaterial --|> Postagem
-Disciplina o-- Aluno
-Rotina *-- Aluno
-Postagem --> Aluno : autor
-SistemaFocusU o-- Aluno
-SistemaFocusU o-- Disciplina
-SistemaFocusU o-- Postagem
-SistemaFocusU o-- Evento
+    %% ---------------------------------------------------------
+    %% GERENCIADOR CENTRAL DO SISTEMA
+    %% ---------------------------------------------------------
+    class SistemaFocusU {
+        -_alunos: List~Aluno~
+        -_disciplinas: List~Disciplina~
+        -_postagens: List~Postagem~
+        -_eventos: List~Evento~
+        +cadastrar_aluno(aluno)
+        +remover_aluno(matricula)
+        +adicionar_postagem(postagem)
+        +adicionar_evento(evento)
+        +obter_estatisticas() Dict
+    }
+
+    %% ---------------------------------------------------------
+    %% RELACIONAMENTOS (HERANÇA, IMPLEMENTAÇÃO & COMPOSIÇÃO)
+    %% ---------------------------------------------------------
+    Publicavel <|.. Postagem : Implementa
+    Publicavel <|.. Evento : Implementa
+
+    Usuario <|-- Aluno : Herança
+
+    Postagem <|-- PostagemDuvida : Herança
+    Postagem <|-- PostagemMaterial : Herança
+
+    Aluno "1" *-- "1" Rotina : Composição
+    Aluno "1" o-- "*" Disciplina : Agregação
+    Disciplina "1" *-- "*" Tarefa : Composição
+    Postagem "1" --> "1" Usuario : Associação (Autor)
+
+    SistemaFocusU "1" o-- "*" Aluno : Gerencia
+    SistemaFocusU "1" o-- "*" Disciplina : Gerencia
+    SistemaFocusU "1" o-- "*" Postagem : Gerencia
+    SistemaFocusU "1" o-- "*" Evento : Gerencia
