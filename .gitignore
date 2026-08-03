@@ -1,2 +1,26 @@
 dados_focusu.json
 *.json
+
+# Byte-compiled / optimized / DLL files (caches do Python)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches de testes
+.pytest_cache/
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Configurações locais / IDEs
+.vscode/
+.idea/
+
+# Arquivos de estado do Streamlit (opcional)
+.streamlit/secrets.toml
+
+# Sistemas Operacionais
+.DS_Store
+Thumbs.db
