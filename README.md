@@ -23,6 +23,25 @@ O **FocusU** é um ecossistema acadêmico completo com **interface web interativ
 A plataforma conecta a organização individual com a colaboração coletiva através de um **Feed estilo rede social** com fotos e comentários em tempo real, além de um **Dashboard de Estatísticas** completo para acompanhamento de métricas de engajamento da comunidade.
 
 ---
+---
+
+## 📸 Demonstração da Interface
+
+<div align="center">
+
+| 🏠 Home / Dashboard | 📸 Feed da Comunidade |
+| :---: | :---: |
+| ![Home FocusU](images/home_preview.png) | ![Feed FocusU](images/feed_preview.png) |
+
+| 👨‍🎓 Gestão de Alunos | 📚 Gerenciamento de Disciplinas |
+| :---: | :---: |
+| ![Alunos FocusU](images/alunos_preview.png) | ![Disciplinas FocusU](images/disciplinas_preview.png) |
+
+| 📅 Agenda Acadêmica | 📊 Estatísticas & Métricas |
+| :---: | :---: |
+| ![Agenda FocusU](images/agenda_preview.png) | ![Estatísticas FocusU](images/estatisticas_preview.png) |
+
+</div>
 
 ## 🎨 Identidade Visual & Cores do Projeto
 
@@ -67,20 +86,33 @@ O FocusU foi construído como consolidação prática dos conceitos avançados d
 ```text
 FocusU/
 │
-├── docs/                 # Documentação técnica e Diagrama de Classes
+├── .devcontainer/        # Configuração para desenvolvimento em containers
+├── .streamlit/           # Configurações de tema e layout do Streamlit (config.toml)
+│
+├── docs/                 # Documentação técnica e diários de bordo
 │   ├── diagrama_classes.md
-│   └── diario_de_bordo.md
+│   ├── diario_de_bordo_clara.md
+│   ├── diario_de_bordo_etapa3.md
+│   ├── diario_de_bordo_frontend.md
+│   ├── diario_de_bordo_recursão.md
+│   └── FocusU.pdf
 │
-├── images/               # Identidade visual e screenshots do sistema
+├── images/               # Logo e elementos visuais da documentação
+│   └── logo_focusu.png
 │
-├── src/                  # Código-fonte principal do projeto
-│   ├── interfaces/       # Contratos abstratos (publicavel.py)
-│   ├── models/           # Entidades de negócio (usuario.py, postagem.py, evento.py)
-│   ├── system/           # Gerenciador centralizado da aplicação (sistema.py)
-│   ├── utils/            # Funções auxiliares (helpers de imagem Base64)
-│   └── web/              # Interface Web em Streamlit (interface_web.py e paginas.py)
+├── src/                  # Código-fonte principal da aplicação
+│   ├── exceptions/       # Tratamento de exceções customizadas (exceptions.py)
+│   ├── interfaces/       # Interfaces e contratos abstratos (publicavel.py)
+│   ├── models/           # Entidades de negócio (usuario.py, postagem.py, disciplina.py, evento.py, etc.)
+│   ├── system/           # Gerenciador do sistema e regras de negócio (sistema.py)
+│   ├── utils/            # Módulos utilitários (helpers.py, persistencia.py)
+│   └── web/              # Interface Web em Streamlit (interface_web.py, paginas.py, css.py, components.py)
 │
-├── requirements.txt      # Dependências da aplicação
+├── tests/                # Suíte de testes unitários (test_sistema.py, test_tabela_hash.py)
+│
+├── main.py               # Ponto de entrada / execução via CLI ou bootstrap
+├── requirements.txt      # Dependências do projeto
+├── .gitignore            # Arquivos ignorados pelo Git
 └── README.md             # Documentação oficial do projeto
 ```
 
@@ -96,17 +128,27 @@ Git instalado.
 1. Clonar o Repositório
 
 ```Bash
-git clone [https://github.com/seu-usuario/FocusU.git](https://github.com/seu-usuario/FocusU.git)
+git clone [https://github.com/Clarareis03/FocusU.git](https://github.com/Clarareis03/FocusU.git)
 cd FocusU
 ```
-### 2. Instalar as Dependências
-Certifique-se de instalar as bibliotecas necessárias (Streamlit, Pandas, etc.):
+3. Criar e Ativar Ambiente Virtual (Recomendado):
+```Bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux / macOS
+python3 -m venv venv
+source venv/bin/activate
+```
+2. Instalar as Dependências
+Certifique-se de instalar as bibliotecas necessárias:
 
 ```Bash
 pip install -r requirements.txt
 ```
 
-### 3. Executar a Aplicação Web
+3. Executar a Aplicação Web
 Execute a interface web no navegador rodando o comando a partir da raiz do repositório:
 
 No Windows / Linux / macOS:
