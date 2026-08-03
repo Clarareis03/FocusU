@@ -765,15 +765,16 @@ def tela_feed(sistema):
                     nome_autor = getattr(
                         autor_obj,
                         "nome",
-                        "clara" if autor_obj else "Institucional",
+                        "Institucional" if is_evento else "clara",
                     )
                     foto_autor = getattr(autor_obj, "foto_b64", None)
                     foto_post = getattr(item, "foto_post_b64", None)
 
+                    # Construção do Avatar
                     if foto_autor:
                         avatar_html = f'<img src="{foto_autor}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">'
                     else:
-                        letra = nome_autor[0].upper() if nome_autor else "U"
+                        letra = nome_autor[0].upper() if nome_autor else "I"
                         avatar_html = f"""
                         <div style="
                             background: linear-gradient(135deg, #C13584, #E1306C, #FD1D1D);
@@ -783,6 +784,7 @@ def tela_feed(sistema):
                         ">{letra}</div>
                         """
 
+                    # Renderiza o Cabeçalho do Card
                     st.markdown(
                         f"""
                         <div style="
@@ -791,6 +793,7 @@ def tela_feed(sistema):
                             border-radius: 10px;
                             margin-bottom: 28px;
                             padding-bottom: 12px;
+                            overflow: hidden;
                         ">
                             <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px;">
                                 {avatar_html}
@@ -800,6 +803,7 @@ def tela_feed(sistema):
                         unsafe_allow_html=True,
                     )
 
+                    # Se for foto do post
                     if foto_post:
                         st.markdown(
                             f"""
@@ -810,14 +814,25 @@ def tela_feed(sistema):
                             unsafe_allow_html=True,
                         )
 
-                    st.markdown(
-                        '<div style="padding: 10px 14px 0px 14px;">',
-                        unsafe_allow_html=True,
-                    )
+                    # Título e Conteúdo do Card
+                    st.markdown('<div style="padding: 10px 14px 0px 14px;">', unsafe_allow_html=True)
 
                     if hasattr(item, "titulo") and item.titulo:
                         st.markdown(
                             f"<h4 style='color: white; margin: 0 0 4px 0;'>{item.titulo}</h4>",
+                            unsafe_allow_html=True,
+                        )
+
+                    # Se for EVENTO, exibe data e hora
+                    if is_evento:
+                        data_ev = getattr(item, "data", "A definir")
+                        hora_ev = getattr(item, "horario", "A definir")
+                        st.markdown(
+                            f"""
+                            <p style='color: #A1A1AA; font-size: 14px; margin: 4px 0;'>
+                                📅 <strong>Data:</strong> {data_ev} &nbsp;|&nbsp; ⏰ <strong>Horário:</strong> {hora_ev}
+                            </p>
+                            """,
                             unsafe_allow_html=True,
                         )
 
@@ -831,31 +846,23 @@ def tela_feed(sistema):
                     st.markdown("</div>", unsafe_allow_html=True)
 
                     # ==========================================================
-                    # LÓGICA DE CURTIDA ÚNICA COM TOGGLE
+                    # LÓGICA DE CURTIDA ÚNICA COM TOGGLE (APENAS PARA POSTS)
                     # ==========================================================
                     if not is_evento:
-                        st.markdown(
-                            '<div style="padding: 6px 14px;">',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown('<div style="padding: 6px 14px;">', unsafe_allow_html=True)
 
-                        # Inicializa a lista/conjunto de curtidores no objeto se não existir
                         if not hasattr(item, "curtidores") or not isinstance(item.curtidores, set):
                             if hasattr(item, "curtidores") and isinstance(item.curtidores, list):
                                 item.curtidores = set(item.curtidores)
                             else:
                                 item.curtidores = set()
 
-                        # Identificador do aluno (usando matrícula ou fallback para id/sessão)
                         user_id = getattr(aluno_logado, "matricula", None) if aluno_logado else "anonimo"
-                        
                         ja_curtiu = user_id in item.curtidores
                         icone_like = "❤️" if ja_curtiu else "🤍"
                         total_likes = len(item.curtidores) if item.curtidores else getattr(item, "curtidas", 0)
 
-                        if st.button(
-                            f"{icone_like} {total_likes} curtidas", key=f"like_{idx}"
-                        ):
+                        if st.button(f"{icone_like} {total_likes} curtidas", key=f"like_{idx}"):
                             if not aluno_logado:
                                 st.warning("⚠️ Faça login para curtir esta publicação.")
                             else:
@@ -864,33 +871,23 @@ def tela_feed(sistema):
                                 else:
                                     item.curtidores.add(user_id)
 
-                                # Atualiza o atributo clássico 'curtidas' com a contagem exata
                                 item.curtidas = len(item.curtidores)
-
-                                # Compatibilidade para salvar JSON (converte set para list)
                                 item.curtidores_list = list(item.curtidores)
-
-                                # SALVA NO BANCO DE DADOS (JSON)
                                 salvar_sistema_json(sistema)
                                 st.rerun()
 
                         st.markdown("</div>", unsafe_allow_html=True)
 
+                    # Comentários (Apenas Posts)
                     if not is_evento and hasattr(item, "comentarios"):
-                        st.markdown(
-                            '<div style="padding: 0px 14px;">',
-                            unsafe_allow_html=True,
-                        )
+                        st.markdown('<div style="padding: 0px 14px;">', unsafe_allow_html=True)
 
                         if item.comentarios:
                             for c in item.comentarios:
                                 if "::" in str(c):
                                     c_autor, c_texto = str(c).split("::", 1)
                                 else:
-                                    c_autor, c_texto = (
-                                        nome_autor.lower(),
-                                        str(c),
-                                    )
+                                    c_autor, c_texto = (nome_autor.lower(), str(c))
 
                                 st.markdown(
                                     f"""
@@ -910,9 +907,7 @@ def tela_feed(sistema):
                         st.markdown("</div>", unsafe_allow_html=True)
 
                         st.markdown("<br>", unsafe_allow_html=True)
-                        with st.form(
-                            key=f"form_coment_{idx}", clear_on_submit=True
-                        ):
+                        with st.form(key=f"form_coment_{idx}", clear_on_submit=True):
                             c_input, c_btn = st.columns([0.8, 0.2])
 
                             with c_input:
@@ -930,15 +925,11 @@ def tela_feed(sistema):
                                             st.error("⚠️ Faça login para comentar.")
                                         else:
                                             autor_nome_c = aluno_logado.nome
-                                            item.comentar(
-                                                f"{autor_nome_c}::{txt_coment.strip()}"
-                                            )
-
-                                            # SALVA NO BANCO DE DADOS (JSON)
+                                            item.comentar(f"{autor_nome_c}::{txt_coment.strip()}")
                                             salvar_sistema_json(sistema)
-
                                             st.rerun()
 
+                    # Fecha o Container principal do Card (Post ou Evento)
                     st.markdown("</div>", unsafe_allow_html=True)
 
     with tab_novo:
@@ -959,16 +950,9 @@ def tela_feed(sistema):
                 if categoria != "Evento":
                     st.info(f"👤 Publicando como: **{aluno_logado.nome}** (`{aluno_logado.matricula}`)")
 
-                    titulo = st.text_input(
-                        "Título", placeholder="Ex: Foto no campus"
-                    )
-                    conteudo = st.text_area(
-                        "Legenda", placeholder="Escreva a legenda..."
-                    )
-
-                    foto_post_upload = st.file_uploader(
-                        "Anexar Foto", type=["png", "jpg", "jpeg"]
-                    )
+                    titulo = st.text_input("Título", placeholder="Ex: Foto no campus")
+                    conteudo = st.text_area("Legenda", placeholder="Escreva a legenda...")
+                    foto_post_upload = st.file_uploader("Anexar Foto", type=["png", "jpg", "jpeg"])
 
                     disciplina_nome = ""
                     link_download = ""
@@ -1005,26 +989,21 @@ def tela_feed(sistema):
                                         titulo=titulo.strip(),
                                         conteudo=conteudo.strip(),
                                         autor=aluno_logado,
-                                        disciplina=disciplina_nome.strip()
-                                        or "Geral",
+                                        disciplina=disciplina_nome.strip() or "Geral",
                                     )
                                 else:
                                     post = PostagemMaterial(
                                         titulo=titulo.strip(),
                                         conteudo=conteudo.strip(),
                                         autor=aluno_logado,
-                                        link_download=link_download.strip()
-                                        or "#",
+                                        link_download=link_download.strip() or "#",
                                     )
 
                                 if foto_b64:
                                     setattr(post, "foto_post_b64", foto_b64)
 
                                 sistema.adicionar_postagem(post)
-
-                                # SALVA NO BANCO DE DADOS (JSON)
                                 salvar_sistema_json(sistema)
-
                                 st.success("✅ Publicado com sucesso!")
                                 st.rerun()
                             except Exception as e:
@@ -1055,8 +1034,6 @@ def tela_feed(sistema):
                                     horario=horario_ev.strftime("%H:%M"),
                                 )
                                 sistema.adicionar_evento(evento)
-
-                                # SALVA NO BANCO DE DADOS (JSON)
                                 salvar_sistema_json(sistema)
 
                                 st.success("✅ Evento criado com sucesso!")
