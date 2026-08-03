@@ -770,7 +770,7 @@ def tela_feed(sistema):
                     foto_autor = getattr(autor_obj, "foto_b64", None)
                     foto_post = getattr(item, "foto_post_b64", None)
 
-                    # Construção do Avatar
+                    # Construção do Avatar HTML
                     if foto_autor:
                         avatar_html = f'<img src="{foto_autor}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">'
                     else:
@@ -784,73 +784,54 @@ def tela_feed(sistema):
                         ">{letra}</div>
                         """
 
-                    # Renderiza o Cabeçalho do Card
-                    st.markdown(
-                        f"""
-                        <div style="
-                            background-color: #121214;
-                            border: 1px solid #27272A;
-                            border-radius: 10px;
-                            margin-bottom: 28px;
-                            padding-bottom: 12px;
-                            overflow: hidden;
-                        ">
-                            <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px;">
-                                {avatar_html}
-                                <span style="color: white; font-weight: 600; font-size: 14px;">{nome_autor.lower()}</span>
-                            </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
-                    # Se for foto do post
-                    if foto_post:
-                        st.markdown(
-                            f"""
-                            <div style="width: 100%; background: #000; text-align: center;">
-                                <img src="{foto_post}" style="width: 100%; max-height: 600px; object-fit: contain;">
-                            </div>
-                            """,
-                            unsafe_allow_html=True,
-                        )
-
-                    # Título e Conteúdo do Card
-                    st.markdown('<div style="padding: 10px 14px 0px 14px;">', unsafe_allow_html=True)
-
-                    if hasattr(item, "titulo") and item.titulo:
-                        st.markdown(
-                            f"<h4 style='color: white; margin: 0 0 4px 0;'>{item.titulo}</h4>",
-                            unsafe_allow_html=True,
-                        )
-
-                    # Se for EVENTO, exibe data e hora
+                    # Prepara textos do card
+                    titulo_html = f"<h3 style='color: white; margin: 8px 0 4px 0;'>{item.titulo}</h3>" if (hasattr(item, "titulo") and item.titulo) else ""
+                    
                     if is_evento:
                         data_ev = getattr(item, "data", "A definir")
                         hora_ev = getattr(item, "horario", "A definir")
-                        st.markdown(
-                            f"""
-                            <p style='color: #A1A1AA; font-size: 14px; margin: 4px 0;'>
-                                📅 <strong>Data:</strong> {data_ev} &nbsp;|&nbsp; ⏰ <strong>Horário:</strong> {hora_ev}
-                            </p>
-                            """,
-                            unsafe_allow_html=True,
-                        )
+                        detalhes_html = f"""
+                        <p style='color: #A1A1AA; font-size: 14px; margin: 4px 0 12px 0;'>
+                            🗓️ <strong>Data:</strong> {data_ev} &nbsp;|&nbsp; ⏰ <strong>Horário:</strong> {hora_ev}
+                        </p>
+                        """
+                    else:
+                        detalhes_html = ""
 
                     conteudo_texto = getattr(item, "conteudo", "")
-                    if conteudo_texto:
-                        st.markdown(
-                            f"<p style='color: #E4E4E7; font-size: 14px; margin: 0;'><strong style='color:white;'>{nome_autor.lower()}</strong> {conteudo_texto}</p>",
-                            unsafe_allow_html=True,
-                        )
+                    conteudo_html = f"<p style='color: #E4E4E7; font-size: 14px; margin: 4px 0 12px 0;'><strong style='color:white;'>{nome_autor.lower()}</strong> {conteudo_texto}</p>" if conteudo_texto else ""
 
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    foto_html = f"""
+                    <div style="width: 100%; background: #000; text-align: center; margin: 10px 0;">
+                        <img src="{foto_post}" style="width: 100%; max-height: 600px; object-fit: contain;">
+                    </div>
+                    """ if foto_post else ""
+
+                    # --- RENDERIZAÇÃO EM BLOCO ÚNICO (Evita quebra de tags) ---
+                    card_html = f"""
+                    <div style="
+                        background-color: #121214;
+                        border: 1px solid #27272A;
+                        border-radius: 10px;
+                        margin-bottom: 24px;
+                        padding: 14px;
+                    ">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            {avatar_html}
+                            <span style="color: white; font-weight: 600; font-size: 14px;">{nome_autor.lower()}</span>
+                        </div>
+                        {foto_html}
+                        {titulo_html}
+                        {detalhes_html}
+                        {conteudo_html}
+                    </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
 
                     # ==========================================================
-                    # LÓGICA DE CURTIDA ÚNICA COM TOGGLE (APENAS PARA POSTS)
+                    # LÓGICA DE CURTIDA E COMENTÁRIOS (APENAS PARA POSTS)
                     # ==========================================================
                     if not is_evento:
-                        st.markdown('<div style="padding: 6px 14px;">', unsafe_allow_html=True)
-
                         if not hasattr(item, "curtidores") or not isinstance(item.curtidores, set):
                             if hasattr(item, "curtidores") and isinstance(item.curtidores, list):
                                 item.curtidores = set(item.curtidores)
@@ -876,13 +857,7 @@ def tela_feed(sistema):
                                 salvar_sistema_json(sistema)
                                 st.rerun()
 
-                        st.markdown("</div>", unsafe_allow_html=True)
-
-                    # Comentários (Apenas Posts)
-                    if not is_evento and hasattr(item, "comentarios"):
-                        st.markdown('<div style="padding: 0px 14px;">', unsafe_allow_html=True)
-
-                        if item.comentarios:
+                        if hasattr(item, "comentarios") and item.comentarios:
                             for c in item.comentarios:
                                 if "::" in str(c):
                                     c_autor, c_texto = str(c).split("::", 1)
@@ -891,8 +866,8 @@ def tela_feed(sistema):
 
                                 st.markdown(
                                     f"""
-                                    <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 8px;">
-                                        <div style="background: #3F3F46; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;">
+                                    <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 6px;">
+                                        <div style="background: #3F3F46; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
                                             {c_autor[0].upper()}
                                         </div>
                                         <div>
@@ -904,9 +879,6 @@ def tela_feed(sistema):
                                     unsafe_allow_html=True,
                                 )
 
-                        st.markdown("</div>", unsafe_allow_html=True)
-
-                        st.markdown("<br>", unsafe_allow_html=True)
                         with st.form(key=f"form_coment_{idx}", clear_on_submit=True):
                             c_input, c_btn = st.columns([0.8, 0.2])
 
@@ -928,9 +900,6 @@ def tela_feed(sistema):
                                             item.comentar(f"{autor_nome_c}::{txt_coment.strip()}")
                                             salvar_sistema_json(sistema)
                                             st.rerun()
-
-                    # Fecha o Container principal do Card (Post ou Evento)
-                    st.markdown("</div>", unsafe_allow_html=True)
 
     with tab_novo:
         st.subheader("O que você deseja compartilhar?")
@@ -1040,7 +1009,6 @@ def tela_feed(sistema):
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Erro ao criar evento: {str(e)}")
-
 
 # ==========================================================
 # 6. TELA DE ESTATÍSTICAS E DASHBOARD
