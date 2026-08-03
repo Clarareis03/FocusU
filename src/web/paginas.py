@@ -757,9 +757,7 @@ def tela_feed(sistema):
 
             with col_central:
                 for idx, item in enumerate(reversed(feed_items)):
-                    is_evento = isinstance(item, Evento) or hasattr(
-                        item, "horario"
-                    )
+                    is_evento = isinstance(item, Evento) or hasattr(item, "horario")
 
                     autor_obj = getattr(item, "autor", None)
                     nome_autor = getattr(
@@ -770,136 +768,112 @@ def tela_feed(sistema):
                     foto_autor = getattr(autor_obj, "foto_b64", None)
                     foto_post = getattr(item, "foto_post_b64", None)
 
-                    # Construção do Avatar HTML
+                    # Avatar compacto sem quebra de linha
                     if foto_autor:
                         avatar_html = f'<img src="{foto_autor}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">'
                     else:
                         letra = nome_autor[0].upper() if nome_autor else "I"
-                        avatar_html = f"""
-                        <div style="
-                            background: linear-gradient(135deg, #C13584, #E1306C, #FD1D1D);
-                            width: 32px; height: 32px; border-radius: 50%;
-                            display: flex; align-items: center; justify-content: center;
-                            color: white; font-weight: bold; font-size: 14px;
-                        ">{letra}</div>
-                        """
+                        avatar_html = f'<div style="background: linear-gradient(135deg, #C13584, #E1306C, #FD1D1D); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">{letra}</div>'
 
-                    # Prepara textos do card
-                    titulo_html = f"<h3 style='color: white; margin: 8px 0 4px 0;'>{item.titulo}</h3>" if (hasattr(item, "titulo") and item.titulo) else ""
-                    
-                    if is_evento:
-                        data_ev = getattr(item, "data", "A definir")
-                        hora_ev = getattr(item, "horario", "A definir")
-                        detalhes_html = f"""
-                        <p style='color: #A1A1AA; font-size: 14px; margin: 4px 0 12px 0;'>
-                            🗓️ <strong>Data:</strong> {data_ev} &nbsp;|&nbsp; ⏰ <strong>Horário:</strong> {hora_ev}
-                        </p>
-                        """
-                    else:
-                        detalhes_html = ""
+                    # Container nativo do Streamlit (Cria a caixa do Post perfeitamente)
+                    with st.container(border=True):
+                        # Cabeçalho do Autor (tudo em linha única HTML)
+                        st.markdown(
+                            f'<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">{avatar_html}<span style="color: white; font-weight: 600; font-size: 14px;">{nome_autor.lower()}</span></div>',
+                            unsafe_allow_html=True
+                        )
 
-                    conteudo_texto = getattr(item, "conteudo", "")
-                    conteudo_html = f"<p style='color: #E4E4E7; font-size: 14px; margin: 4px 0 12px 0;'><strong style='color:white;'>{nome_autor.lower()}</strong> {conteudo_texto}</p>" if conteudo_texto else ""
+                        # Imagem do Post
+                        if foto_post:
+                            st.markdown(
+                                f'<div style="width: 100%; background: #000; text-align: center; margin: 10px 0;"><img src="{foto_post}" style="width: 100%; max-height: 600px; object-fit: contain;"></div>',
+                                unsafe_allow_html=True
+                            )
 
-                    foto_html = f"""
-                    <div style="width: 100%; background: #000; text-align: center; margin: 10px 0;">
-                        <img src="{foto_post}" style="width: 100%; max-height: 600px; object-fit: contain;">
-                    </div>
-                    """ if foto_post else ""
+                        # Título
+                        if hasattr(item, "titulo") and item.titulo:
+                            st.subheader(item.titulo)
 
-                    # --- RENDERIZAÇÃO EM BLOCO ÚNICO (Evita quebra de tags) ---
-                    card_html = f"""
-                    <div style="
-                        background-color: #121214;
-                        border: 1px solid #27272A;
-                        border-radius: 10px;
-                        margin-bottom: 24px;
-                        padding: 14px;
-                    ">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-                            {avatar_html}
-                            <span style="color: white; font-weight: 600; font-size: 14px;">{nome_autor.lower()}</span>
-                        </div>
-                        {foto_html}
-                        {titulo_html}
-                        {detalhes_html}
-                        {conteudo_html}
-                    </div>
-                    """
-                    st.markdown(card_html, unsafe_allow_html=True)
+                        # Se for EVENTO
+                        if is_evento:
+                            data_ev = getattr(item, "data", "A definir")
+                            hora_ev = getattr(item, "horario", "A definir")
+                            st.markdown(
+                                f'<p style="color: #A1A1AA; font-size: 14px; margin: 4px 0 8px 0;">🗓️ <strong>Data:</strong> {data_ev} &nbsp;|&nbsp; ⏰ <strong>Horário:</strong> {hora_ev}</p>',
+                                unsafe_allow_html=True
+                            )
 
-                    # ==========================================================
-                    # LÓGICA DE CURTIDA E COMENTÁRIOS (APENAS PARA POSTS)
-                    # ==========================================================
-                    if not is_evento:
-                        if not hasattr(item, "curtidores") or not isinstance(item.curtidores, set):
-                            if hasattr(item, "curtidores") and isinstance(item.curtidores, list):
-                                item.curtidores = set(item.curtidores)
-                            else:
-                                item.curtidores = set()
+                        # Conteúdo/Legenda
+                        conteudo_texto = getattr(item, "conteudo", "")
+                        if conteudo_texto:
+                            st.markdown(
+                                f'<p style="color: #E4E4E7; font-size: 14px; margin: 4px 0 12px 0;"><strong style="color:white;">{nome_autor.lower()}</strong> {conteudo_texto}</p>',
+                                unsafe_allow_html=True
+                            )
 
-                        user_id = getattr(aluno_logado, "matricula", None) if aluno_logado else "anonimo"
-                        ja_curtiu = user_id in item.curtidores
-                        icone_like = "❤️" if ja_curtiu else "🤍"
-                        total_likes = len(item.curtidores) if item.curtidores else getattr(item, "curtidas", 0)
-
-                        if st.button(f"{icone_like} {total_likes} curtidas", key=f"like_{idx}"):
-                            if not aluno_logado:
-                                st.warning("⚠️ Faça login para curtir esta publicação.")
-                            else:
-                                if ja_curtiu:
-                                    item.curtidores.remove(user_id)
+                        # Curtidas & Comentários (Apenas Posts)
+                        if not is_evento:
+                            if not hasattr(item, "curtidores") or not isinstance(item.curtidores, set):
+                                if hasattr(item, "curtidores") and isinstance(item.curtidores, list):
+                                    item.curtidores = set(item.curtidores)
                                 else:
-                                    item.curtidores.add(user_id)
+                                    item.curtidores = set()
 
-                                item.curtidas = len(item.curtidores)
-                                item.curtidores_list = list(item.curtidores)
-                                salvar_sistema_json(sistema)
-                                st.rerun()
+                            user_id = getattr(aluno_logado, "matricula", None) if aluno_logado else "anonimo"
+                            ja_curtiu = user_id in item.curtidores
+                            icone_like = "❤️" if ja_curtiu else "🤍"
+                            total_likes = len(item.curtidores) if item.curtidores else getattr(item, "curtidas", 0)
 
-                        if hasattr(item, "comentarios") and item.comentarios:
-                            for c in item.comentarios:
-                                if "::" in str(c):
-                                    c_autor, c_texto = str(c).split("::", 1)
+                            if st.button(f"{icone_like} {total_likes} curtidas", key=f"like_{idx}"):
+                                if not aluno_logado:
+                                    st.warning("⚠️ Faça login para curtir esta publicação.")
                                 else:
-                                    c_autor, c_texto = (nome_autor.lower(), str(c))
+                                    if ja_curtiu:
+                                        item.curtidores.remove(user_id)
+                                    else:
+                                        item.curtidores.add(user_id)
 
-                                st.markdown(
-                                    f"""
-                                    <div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 6px;">
-                                        <div style="background: #3F3F46; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">
-                                            {c_autor[0].upper()}
-                                        </div>
-                                        <div>
-                                            <span style="color: white; font-weight: 600; font-size: 13px;">{c_autor.lower()}</span>
-                                            <span style="color: #D4D4D8; font-size: 13px; margin-left: 4px;">{c_texto}</span>
-                                        </div>
-                                    </div>
-                                    """,
-                                    unsafe_allow_html=True,
-                                )
+                                    item.curtidas = len(item.curtidores)
+                                    item.curtidores_list = list(item.curtidores)
+                                    salvar_sistema_json(sistema)
+                                    st.rerun()
 
-                        with st.form(key=f"form_coment_{idx}", clear_on_submit=True):
-                            c_input, c_btn = st.columns([0.8, 0.2])
+                            if hasattr(item, "comentarios") and item.comentarios:
+                                for c in item.comentarios:
+                                    if "::" in str(c):
+                                        c_autor, c_texto = str(c).split("::", 1)
+                                    else:
+                                        c_autor, c_texto = (nome_autor.lower(), str(c))
 
-                            with c_input:
-                                txt_coment = st.text_input(
-                                    "Adicionar comentário...",
-                                    placeholder="Adicionar comentário como " + (aluno_logado.nome if aluno_logado else "visitante") + "...",
-                                    label_visibility="collapsed",
-                                    key=f"in_{idx}",
-                                )
+                                    st.markdown(
+                                        f'<div style="display: flex; align-items: flex-start; gap: 8px; margin-top: 6px;"><div style="background: #3F3F46; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">{c_autor[0].upper()}</div><div><span style="color: white; font-weight: 600; font-size: 13px;">{c_autor.lower()}</span><span style="color: #D4D4D8; font-size: 13px; margin-left: 4px;">{c_texto}</span></div></div>',
+                                        unsafe_allow_html=True
+                                    )
 
-                            with c_btn:
-                                if st.form_submit_button("Publicar"):
-                                    if txt_coment.strip():
-                                        if not aluno_logado:
-                                            st.error("⚠️ Faça login para comentar.")
-                                        else:
-                                            autor_nome_c = aluno_logado.nome
-                                            item.comentar(f"{autor_nome_c}::{txt_coment.strip()}")
-                                            salvar_sistema_json(sistema)
-                                            st.rerun()
+                            with st.form(key=f"form_coment_{idx}", clear_on_submit=True):
+                                c_input, c_btn = st.columns([0.8, 0.2])
+
+                                with c_input:
+                                    txt_coment = st.text_input(
+                                        "Adicionar comentário...",
+                                        placeholder="Adicionar comentário como " + (aluno_logado.nome if aluno_logado else "visitante") + "...",
+                                        label_visibility="collapsed",
+                                        key=f"in_{idx}",
+                                    )
+
+                                with c_btn:
+                                    if st.form_submit_button("Publicar"):
+                                        if txt_coment.strip():
+                                            if not aluno_logado:
+                                                st.error("⚠️ Faça login para comentar.")
+                                            else:
+                                                autor_nome_c = aluno_logado.nome
+                                                item.comentar(f"{autor_nome_c}::{txt_coment.strip()}")
+                                                salvar_sistema_json(sistema)
+                                                st.rerun()
+
+                    # Espaçamento entre cards
+                    st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
 
     with tab_novo:
         st.subheader("O que você deseja compartilhar?")
