@@ -11,7 +11,7 @@
   ---
   <p align="center">
     <b>Desenvolvido por:</b><br>
-    Ayra &nbsp;·&nbsp; Beatriz &nbsp;·&nbsp; Clara Reis
+    Ayra &nbsp;·&nbsp; Ana Beatriz &nbsp;·&nbsp; Clara Reis
   </p>
   ---
 </div>
