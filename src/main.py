@@ -11,7 +11,18 @@ from models.postagem import (
 from models.evento import Evento
 from system.sistema import SistemaFocusU
 
-sistema = SistemaFocusU()
+# Importa as funções de persistência para manter o JSON atualizado
+try:
+    from src.utils.persistencia import carregar_sistema_json, salvar_sistema_json
+except ModuleNotFoundError:
+    try:
+        from utils.persistencia import carregar_sistema_json, salvar_sistema_json
+    except ModuleNotFoundError:
+        from persistencia import carregar_sistema_json, salvar_sistema_json
+
+# Inicializa o sistema carregando os dados do JSON (se houver)
+instancia_sistema = SistemaFocusU()
+sistema = carregar_sistema_json(instancia_sistema)
 
 # Variável de Sessão (Controla quem está logado no terminal)
 aluno_logado = None
@@ -27,6 +38,7 @@ while True:
     if aluno_logado is None:
         print("1 - Login")
         print("2 - Cadastro de Nova Conta")
+        print("3 - Esqueci Minha Senha")
         print("0 - Sair")
 
         opcao = input("\nEscolha uma opção: ").strip()
@@ -67,36 +79,54 @@ while True:
             try:
                 novo_aluno = Aluno(nome, email, mat, senha)
                 sistema.adicionar_aluno(novo_aluno)
+                salvar_sistema_json(sistema) # Persiste o novo cadastro
                 print("\nAluno cadastrado com sucesso! Você já pode fazer login.")
             except ValueError as e:
                 print(f"\n[ERRO NO CADASTRO]: {e}")
+                
+        elif opcao == "3":
+            print("\n--- RECUPERAÇÃO DE SENHA ---")
+            email_rec = input("Seu E-mail cadastrado: ").strip()
+            mat_rec = input("Sua Matrícula: ").strip()
+            nova_senha = input("Nova Senha (min. 3 caracteres): ").strip()
+            
+            if not email_rec or not mat_rec or not nova_senha:
+                print("\n[AÇÃO CANCELADA]: Todos os campos devem ser preenchidos.")
+                continue
+                
+            if sistema.redefinir_senha(email_rec, mat_rec, nova_senha):
+                salvar_sistema_json(sistema) # Persiste a nova senha
+                print("\nSenha alterada com sucesso! Você já pode fazer login.")
+            else:
+                print("\n[ERRO]: E-mail ou matrícula não encontrados/não coincidem.")
         
         else:
-            print("\n[OPÇÃO INVÁLIDA]: Escolha 1, 2 ou 0.")
+            print("\n[OPÇÃO INVÁLIDA]: Escolha uma das opções do menu.")
 
     # ==============================================================
     # ÁREA LOGADA (O USUÁRIO SÓ VÊ ISSO SE TIVER FEITO LOGIN)
     # ==============================================================
     else:
-        print(f"--- Usuário: {aluno_logado.nome} | Matrícula: {aluno_logado.matricula} ---")
+        print(f"\n--- Usuário: {aluno_logado.nome} | Matrícula: {aluno_logado.matricula} ---")
         print("1 - Criar Disciplina Geral (Sistema)")
         print("2 - Me Matricular em uma Disciplina")
         print("3 - Adicionar Rotina de Estudo")
         print("4 - Criar Postagem no Feed")
         print("5 - Criar Evento no Sistema")
         print("6 - Exibir Feed Geral")
-        print("7 - Ver MINHAS Tarefas Pendentes") # Exclusivo e privado
+        print("7 - Ver MINHAS Tarefas Pendentes")
         print("8 - Curtir Postagem")
         print("9 - Comentar Postagem")
         print("10 - Listar Todos os Alunos")
         print("11 - Estatísticas Gerais do Sistema")
         print("12 - [RECURSÃO] Meu Tempo de Estudo Total")
         print("13 - Apagar Minha Conta")
-        print("14 - Sair da Conta (Logout)")
+        print("14 - Apagar Minha Postagem")
+        print("15 - Sair da Conta (Logout)")
         print("0 - Encerrar Programa")
 
         opcao = input("\nEscolha uma opção: ").strip()
-        OPCOES_VALIDAS = {str(i) for i in range(15)}
+        OPCOES_VALIDAS = {str(i) for i in range(16)}
 
         if opcao not in OPCOES_VALIDAS:
             print("\n[OPÇÃO INVÁLIDA]: Escolha um número válido do menu.")
@@ -110,6 +140,7 @@ while True:
                     print("\n[AÇÃO CANCELADA]: Preencha tudo.")
                     continue
                 sistema.adicionar_disciplina_global(Disciplina(nome, prof))
+                salvar_sistema_json(sistema)
                 print("\nDisciplina criada no sistema global!")
 
             elif opcao == "2":
@@ -124,10 +155,10 @@ while True:
                 
                 idx_d = int(input("Escolha a disciplina pelo número: "))
                 if idx_d < 0 or idx_d >= len(lista_disciplinas):
-                    raise IndexError("Índice de disciplina fora da lista.")
+                    print("\n[ERRO]: Número de disciplina inválido.")
+                    continue
 
-                # Associa a disciplina ao aluno logado (vínculo bidirecional,
-                # espelhando o que a interface Streamlit já fazia)
+                # Associa a disciplina ao aluno logado
                 disciplina_escolhida = lista_disciplinas[idx_d]
                 aluno_logado.adicionar_disciplina(disciplina_escolhida)
 
@@ -136,6 +167,7 @@ while True:
                 if str(aluno_logado.matricula) not in disciplina_escolhida.alunos_matriculados:
                     disciplina_escolhida.alunos_matriculados.append(str(aluno_logado.matricula))
 
+                salvar_sistema_json(sistema)
                 print("\nMatrícula na disciplina efetuada com sucesso!")
 
             elif opcao == "3":
@@ -149,6 +181,7 @@ while True:
                     continue
 
                 aluno_logado.adicionar_rotina(Rotina(atv, temp))
+                salvar_sistema_json(sistema)
                 print("\nRotina salva no SEU perfil pessoal!")
 
             elif opcao == "4":
@@ -158,7 +191,7 @@ while True:
 
                 if tipo == "2":
                     disc = input("Disciplina da dúvida: ").strip()
-                    p = PostagemDuvida(t, c, aluno_logado, disc) # Usa o aluno logado como autor
+                    p = PostagemDuvida(t, c, aluno_logado, disc)
                 elif tipo == "3":
                     link = input("Link do material: ").strip()
                     p = PostagemMaterial(t, c, aluno_logado, link)
@@ -166,18 +199,19 @@ while True:
                     p = Postagem(t, c, aluno_logado)
 
                 sistema.adicionar_postagem(p)
+                salvar_sistema_json(sistema)
                 print("\nPostagem enviada ao feed!")
 
             elif opcao == "5":
                 t, d, h = input("Título: ").strip(), input("Data: ").strip(), input("Horário: ").strip()
                 sistema.adicionar_evento(Evento(t, d, h))
+                salvar_sistema_json(sistema)
                 print("\nEvento publicado!")
 
             elif opcao == "6": 
                 sistema.exibir_feed()
 
             elif opcao == "7":
-                # NOVA OPÇÃO: Chama a função que corrigimos em usuario.py
                 tarefas = aluno_logado.obter_tarefas_pendentes()
                 print(f"\n--- TAREFAS DE {aluno_logado.nome.upper()} ---")
                 if not tarefas:
@@ -188,23 +222,35 @@ while True:
 
             elif opcao == "8":
                 if not sistema.postagens: 
-                    print("Nenhum post disponível."); continue
-                for i, p in enumerate(sistema.postagens): print(f"{i} - {p.titulo}")
-                idx = int(input("Escolha o post (número): "))
+                    print("\nNenhum post disponível.")
+                    continue
+                for i, p in enumerate(sistema.postagens): 
+                    print(f"{i} - {p.titulo}")
+                
+                idx = int(input("\nEscolha o post (número): "))
                 if idx < 0 or idx >= len(sistema.postagens):
-                    raise IndexError("Índice de post fora da lista.")
+                    print("\n[ERRO]: Índice de post fora da lista.")
+                    continue
+                
                 sistema.postagens[idx].curtir()
+                salvar_sistema_json(sistema)
                 print("\nVocê curtiu essa publicação!")
 
             elif opcao == "9":
                 if not sistema.postagens: 
-                    print("Nenhum post disponível."); continue
-                for i, p in enumerate(sistema.postagens): print(f"{i} - {p.titulo}")
-                idx = int(input("Escolha o post (número): "))
+                    print("\nNenhum post disponível.")
+                    continue
+                for i, p in enumerate(sistema.postagens): 
+                    print(f"{i} - {p.titulo}")
+                
+                idx = int(input("\nEscolha o post (número): "))
                 if idx < 0 or idx >= len(sistema.postagens):
-                    raise IndexError("Índice de post fora da lista.")
+                    print("\n[ERRO]: Índice de post fora da lista.")
+                    continue
+                    
                 coment = input("Seu Comentário: ").strip()
                 sistema.postagens[idx].comentar(coment)
+                salvar_sistema_json(sistema)
                 print("\nComentário publicado!")
 
             elif opcao == "10": 
@@ -223,14 +269,40 @@ while True:
                 confirmacao = input("Tem certeza que deseja apagar SUA conta? (s/n): ").strip().lower()
                 if confirmacao == 's':
                     sistema.remover_aluno(aluno_logado)
+                    salvar_sistema_json(sistema)
                     print(f"\nSua conta ({aluno_logado.nome}) foi apagada.")
-                    aluno_logado = None # Desloga automaticamente
+                    aluno_logado = None 
                 else:
                     print("\nAção cancelada.")
 
             elif opcao == "14":
+                minhas_postagens = [p for p in sistema.postagens if getattr(p, 'autor', None) == aluno_logado]
+                
+                if not minhas_postagens:
+                    print("\nVocê não tem nenhuma postagem publicada no momento.")
+                    continue
+                    
+                print("\n--- SUAS POSTAGENS ---")
+                for i, p in enumerate(minhas_postagens):
+                    print(f"{i} - {p.titulo}")
+                    
+                idx_post = int(input("\nDigite o número da postagem que deseja apagar: "))
+                
+                if idx_post < 0 or idx_post >= len(minhas_postagens):
+                    print("\n[ERRO]: Número de postagem inválido.")
+                    continue
+                    
+                post_para_remover = minhas_postagens[idx_post]
+                
+                if sistema.remover_postagem(post_para_remover):
+                    salvar_sistema_json(sistema)
+                    print("\nPostagem removida com sucesso!")
+                else:
+                    print("\n[ERRO]: Não foi possível remover a postagem.")
+
+            elif opcao == "15":
                 print(f"\nAté logo, {aluno_logado.nome}! Deslogando...")
-                aluno_logado = None # Remove a sessão atual
+                aluno_logado = None 
 
             elif opcao == "0":
                 print("\nSaindo do Focus U... Até logo!")
@@ -242,7 +314,5 @@ while True:
                 print("\n[AÇÃO INTERROMPIDA]: Digitação inválida. Digite apenas números inteiros sem letras como 'h' ou 'min'.")
             else:
                 print(f"\n[AÇÃO INTERROMPIDA]: {erro_val}")
-        except IndexError:
-            print("\n[AÇÃO INTERROMPIDA]: O número escolhido não está na lista.")
         except Exception as erro:
             print(f"\n[ERRO INESPERADO]: Ocorreu um problema ({erro}).")

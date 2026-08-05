@@ -88,8 +88,35 @@ class SistemaFocusU:
     def adicionar_postagem(self, p): 
         self.postagens.append(p)
         
+    def remover_postagem(self, postagem_alvo):
+        """
+        Remove a postagem da lista do sistema, se ela existir.
+        Útil para o autor apagar seus próprios posts no feed.
+        """
+        if postagem_alvo in self.postagens:
+            self.postagens.remove(postagem_alvo)
+            return True
+        return False
+
     def adicionar_evento(self, e): 
         self.eventos.append(e)
+
+    def redefinir_senha(self, email, matricula, nova_senha):
+        """
+        Valida se o e-mail e a matrícula coincidem para alterar a senha.
+        Utilizado na funcionalidade 'Esqueci minha senha'.
+        """
+        email_chave = email.lower().strip()
+        matricula_chave = matricula.strip()
+        
+        # Busca o aluno em O(1) usando o e-mail no dicionário
+        aluno = self.alunos_por_email.get(email_chave)
+        
+        # Verifica se o aluno foi encontrado e se a matrícula informada bate com a dele
+        if aluno and aluno.matricula.strip() == matricula_chave:
+            aluno.senha = nova_senha
+            return True
+        return False
 
     def listar_alunos(self):
         print("\n===== ALUNOS =====")

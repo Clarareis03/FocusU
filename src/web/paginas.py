@@ -12,6 +12,7 @@ from models.disciplina import Disciplina
 from models.postagem import Postagem, PostagemDuvida, PostagemMaterial
 from models.usuario import Aluno
 from models.evento import Evento
+from models.rotina import Rotina  # <-- IMPORTAÇÃO DA ROTINA ADICIONADA
 from utils.helpers import uploaded_file_to_base64
 from utils.persistencia import salvar_sistema_json
 
@@ -324,6 +325,24 @@ def tela_alunos(sistema):
                 st.success("Tudo em dia! Nenhuma tarefa atrasada. 👏")
 
         st.divider()
+        
+        # ==========================================================
+        # NOVO: FORMULÁRIO DE REGISTRO DE ROTINA
+        # ==========================================================
+        with st.expander("⏱️ Registrar Tempo de Estudo"):
+            with st.form("form_rotina", clear_on_submit=True):
+                atv = st.text_input("Qual atividade você realizou? (ex: Leitura, Lista de Exercícios)")
+                tempo = st.number_input("Tempo dedicado (em minutos)", min_value=1, step=1)
+                
+                if st.form_submit_button("Salvar Rotina", type="primary"):
+                    if atv.strip():
+                        nova_rotina = Rotina(atv.strip(), int(tempo))
+                        aluno_logado.adicionar_rotina(nova_rotina)
+                        salvar_sistema_json(sistema)
+                        st.success("✅ Tempo de estudo registrado com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Preencha o nome da atividade!")
 
         # Editar Perfil
         with st.expander("✏️ Editar Meu Perfil"):
@@ -359,7 +378,8 @@ def tela_alunos(sistema):
     else:
         st.info("👋 Faça login com sua matrícula e senha ou crie uma conta para acessar o sistema.")
 
-        tab_login, tab_cadastrar = st.tabs(["🔑 Entrar", "➕ Criar Conta"])
+        # ATUALIZAÇÃO: Adicionada a aba "Esqueci a Senha"
+        tab_login, tab_cadastrar, tab_recuperar = st.tabs(["🔑 Entrar", "➕ Criar Conta", "🔒 Esqueci a Senha"])
 
         # --- ABA LOGIN ---
         with tab_login:
@@ -378,9 +398,9 @@ def tela_alunos(sistema):
                     st.warning("⚠️ Preencha a matrícula e a senha.")
                 else:
                     aluno_encontrado = sistema.alunos_por_matricula.get(mat_limpa)
-                    senha_salva = str(getattr(aluno_encontrado, "senha", "")).strip() if aluno_encontrado else ""
 
-                    if aluno_encontrado and senha_salva == senha_limpa and senha_salva != "":
+                    # Ajuste na verificação de senha
+                    if aluno_encontrado and aluno_encontrado.verificar_senha(senha_limpa):
                         st.session_state["aluno_logado"] = aluno_encontrado
                         st.success(f"✅ Bem-vindo(a) de volta, {aluno_encontrado.nome}!")
                         st.rerun()
@@ -414,10 +434,9 @@ def tela_alunos(sistema):
                     try:
                         foto_b64 = uploaded_file_to_base64(foto_upload) if foto_upload else None
 
-                        aluno = Aluno(nome=nome_cad, email=email_cad, matricula=mat_cad)
+                        # Ajuste para incluir a senha no momento da criação do Aluno
+                        aluno = Aluno(nome=nome_cad, email=email_cad, matricula=mat_cad, senha=senha_cad)
 
-                        # Guarda a senha limpa no objeto
-                        setattr(aluno, "senha", senha_cad)
                         if foto_b64:
                             setattr(aluno, "foto_b64", foto_b64)
 
@@ -430,6 +449,31 @@ def tela_alunos(sistema):
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Erro ao cadastrar: {str(e)}")
+                        
+        # --- ABA RECUPERAÇÃO DE SENHA ---
+        with tab_recuperar:
+            st.subheader("Recuperação de Senha")
+            st.info("Para redefinir sua senha, confirme seus dados de cadastro.")
+            
+            with st.form("form_recuperar_senha", clear_on_submit=True):
+                recup_email = st.text_input("Seu E-mail cadastrado")
+                recup_matricula = st.text_input("Sua Matrícula")
+                nova_senha = st.text_input("Digite a Nova Senha", type="password")
+                
+                btn_recuperar = st.form_submit_button("Redefinir Senha", type="primary", use_container_width=True)
+
+            if btn_recuperar:
+                if not recup_email or not recup_matricula or not nova_senha:
+                    st.warning("⚠️ Preencha todos os campos!")
+                else:
+                    if hasattr(sistema, "redefinir_senha"):
+                        if sistema.redefinir_senha(recup_email, recup_matricula, nova_senha):
+                            salvar_sistema_json(sistema)
+                            st.success("✅ Senha atualizada com sucesso! Volte à aba 'Entrar' para fazer login.")
+                        else:
+                            st.error("❌ Dados incorretos. Verifique o e-mail e a matrícula.")
+                    else:
+                        st.error("⚠️ O método redefinir_senha ainda não está disponível no sistema principal.")
 
 
 # ==========================================================
@@ -684,7 +728,8 @@ def tela_agenda(sistema):
                 continue
 
             for tarefa in tarefas:
-                col_check, col_info = st.columns([0.08, 0.92])
+                # Modificado aqui para o layout de botão com input numérico
+                col_info, col_acao = st.columns([0.7, 0.3])
 
                 t_id = getattr(tarefa, "id", tarefa.get("id") if isinstance(tarefa, dict) else None)
                 t_tipo = getattr(tarefa, "tipo", tarefa.get("tipo", "Geral") if isinstance(tarefa, dict) else "Geral")
@@ -692,31 +737,6 @@ def tela_agenda(sistema):
                 t_data = getattr(tarefa, "data_entrega", tarefa.get("data_entrega") if isinstance(tarefa, dict) else None)
                 t_desc = getattr(tarefa, "descricao", tarefa.get("descricao", "") if isinstance(tarefa, dict) else "")
                 ja_concluida = getattr(tarefa, "concluida", tarefa.get("concluida", False) if isinstance(tarefa, dict) else False)
-
-                with col_check:
-                    marcado = st.checkbox(
-                        label="Concluir",
-                        value=ja_concluida,
-                        key=f"chk_{t_id}",
-                        label_visibility="collapsed"
-                    )
-
-                    if marcado != ja_concluida:
-                        if marcado:
-                            if hasattr(disciplina_obj, "concluir_tarefa"):
-                                disciplina_obj.concluir_tarefa(t_id)
-                            elif isinstance(tarefa, dict):
-                                tarefa["concluida"] = True
-                            else:
-                                tarefa.concluida = True
-                        else:
-                            if isinstance(tarefa, dict):
-                                tarefa["concluida"] = False
-                            else:
-                                tarefa.concluida = False
-
-                        salvar_sistema_json(sistema)
-                        st.rerun()
 
                 with col_info:
                     icone = icones_tipo.get(t_tipo, "📌")
@@ -732,6 +752,39 @@ def tela_agenda(sistema):
 
                     if not ja_concluida and isinstance(t_data, date) and t_data < date.today():
                         st.warning("⚠️ Esta tarefa está em atraso!")
+
+                with col_acao:
+                    if ja_concluida:
+                        if st.button("⏪ Reabrir Tarefa", key=f"reabrir_{t_id}", use_container_width=True):
+                            if isinstance(tarefa, dict):
+                                tarefa["concluida"] = False
+                            else:
+                                tarefa.concluida = False
+                            salvar_sistema_json(sistema)
+                            st.rerun()
+                    else:
+                        tempo_gasto = st.number_input(
+                            "Tempo gasto (min)", 
+                            min_value=1, value=30, step=5, 
+                            key=f"tempo_{t_id}"
+                        )
+                        if st.button("✅ Concluir", key=f"btn_concluir_{t_id}", type="primary", use_container_width=True):
+                            # 1. Concluir a tarefa
+                            if hasattr(disciplina_obj, "concluir_tarefa"):
+                                disciplina_obj.concluir_tarefa(t_id)
+                            elif isinstance(tarefa, dict):
+                                tarefa["concluida"] = True
+                            else:
+                                tarefa.concluida = True
+                            
+                            # 2. Registrar o tempo de estudo como Rotina
+                            nome_atividade = f"{t_tipo}: {t_titulo} ({nome_disc})"
+                            nova_rotina = Rotina(nome_atividade, int(tempo_gasto))
+                            aluno_logado.adicionar_rotina(nova_rotina)
+
+                            salvar_sistema_json(sistema)
+                            st.success("Tarefa concluída e tempo registrado!")
+                            st.rerun()
 
                 st.divider()
 
@@ -871,6 +924,17 @@ def tela_feed(sistema):
                                                 item.comentar(f"{autor_nome_c}::{txt_coment.strip()}")
                                                 salvar_sistema_json(sistema)
                                                 st.rerun()
+                                                
+                            # ATUALIZAÇÃO: Botão para apagar postagem apenas se o usuário for o autor
+                            if aluno_logado and autor_obj and getattr(autor_obj, "matricula", None) == aluno_logado.matricula:
+                                if st.button("🗑️ Apagar Postagem", key=f"btn_apagar_{idx}", help="Apagar sua publicação do feed"):
+                                    if hasattr(sistema, "remover_postagem"):
+                                        sistema.remover_postagem(item)
+                                        salvar_sistema_json(sistema)
+                                        st.success("Sua publicação foi excluída!")
+                                        st.rerun()
+                                    else:
+                                        st.error("Erro interno. O método remover_postagem não foi encontrado no sistema.")
 
                     # Espaçamento entre cards
                     st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
