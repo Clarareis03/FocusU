@@ -91,10 +91,7 @@ FocusU/
 │
 ├── docs/                 # Documentação técnica e diários de bordo
 │   ├── diagrama_classes.md
-│   ├── diario_de_bordo_clara.md
-│   ├── diario_de_bordo_etapa3.md
-│   ├── diario_de_bordo_frontend.md
-│   ├── diario_de_bordo_recursão.md
+│   ├── diario_de_bordo.md
 │   └── FocusU.pdf
 │
 ├── images/               # Logo e elementos visuais da documentação
